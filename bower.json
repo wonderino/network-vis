@@ -1,0 +1,20 @@
+{
+  "name": "network-vis",
+  "version": "0.0.0",
+  "authors": [
+    "inho.won <wonderino@gmail.com>"
+  ],
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "d3": "~3.5.5",
+    "normalize.css": "~3.0.2",
+    "d3-transform": "*"
+  }
+}
