@@ -4,11 +4,13 @@ module.exports = function (grunt) {
 
     concat: {
       dev: {
-        files: {
+        dependencies: {
           'dependencies.js' : [
             'bower_components/d3/d3.min.js',
             'bower_components/d3-transform/src/d3-transform.js',
-          ],
+          ]
+        },
+        files : {
           'index.js': [
             'src/*.js',
           ],
@@ -21,8 +23,10 @@ module.exports = function (grunt) {
     }, //end of concat
     connect: {
         dev: {
-            port : '8888',
+          options: {
+            port: 8888,
             livereload : true
+          }
         }
     }, //end of http-server
     watch : {
@@ -31,15 +35,11 @@ module.exports = function (grunt) {
         tasks: []
       },
       scripts: {
-        files: ['js/*'],
-        tasks: ['concat:dev'],
+        files: ['src/*'],
+        tasks: ['concat:dev:files'],
         options: {
                 livereload: true
         }
-      },
-      styles: {
-        files: ['css/*'],
-        tasks: ['concat:dev']
       }
     }//end of watch
   });
