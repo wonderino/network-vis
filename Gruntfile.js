@@ -6,7 +6,7 @@ module.exports = function (grunt) {
       dev: {
         dependencies: {
           'dependencies.js' : [
-            'bower_components/d3/d3.min.js',
+            'bower_components/d3/d3.js',
             'bower_components/d3-transform/src/d3-transform.js',
           ]
         },

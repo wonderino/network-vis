@@ -1,3 +1,30 @@
 .ego-nets {
   margin : 0 auto;
 }
+
+.ego-nets .node {
+
+}
+
+.ego-nets .ego.node {
+
+}
+.ego-nets .background {
+  stroke : #000;
+  stroke-dasharray: 5 10 ;
+  fill : none;
+}
+.ego-nets .ego.node > circle{
+  stroke : none;
+  fill : #E8591D;
+}
+
+.ego-nets .neighbor.node > circle{
+  stroke : none;
+  fill : #1EA278;
+}
+
+.ego-nets .neighbor.node > text{
+  stroke : none;
+  fill : #fff;
+}

@@ -14,12 +14,15 @@
   <script src="dependencies.js"></script>
   <script src="index.js"></script>
   <script>
-  d3.json('data/network.json', function(_err,_data) {
-    var egoNetworks = d3.egoNetworks()
-      .egoIndex(71)
-    d3.select('div.chart')
-      .datum(_data)
-      .call(egoNetworks)
+  d3.json('data/network.sample.json', function(_err,_data) {
+    if(_err) {console.log(_err)}
+    else {
+      var egoNetworks = d3.egoNetworks().egoIndex(0)
+
+      d3.select('div.chart.ego-nets')
+        .datum(_data)
+        .call(egoNetworks)
+    }
   })
   </script>
 </body>
