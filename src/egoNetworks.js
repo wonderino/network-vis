@@ -26,7 +26,7 @@ d3.egoNetworks = function module() {
           .attr('transform', d3.svg.transform().translate([margin.left, margin.top]))
       }
       size.domain([attrs.degreeMin,attrs.degreeMax])
-        .rangeRound([innerWidth*.04, innerWidth*.25]);
+        .rangeRound([innerWidth*.02, innerWidth*.15]);
       svg.datum(_data)
         .call(egoInit)
     })
@@ -34,21 +34,23 @@ d3.egoNetworks = function module() {
 
   function egoInit(_selection) {
     _selection.each(function(_data) {
-      var egoData = getCurEgo(_data.nodes), neighborsData = getNeighbors(_data);
+      var egoData = getCurEgo(_data.nodes),
+      neighborsData = getNeighbors(_data);
       egoData.egoIndex = attrs.egoIndex;
       egoData.egoDegree = neighborsData.reduce(function(pre, cur){
         return pre + cur.linkToEgo.value
       },0)
       //setLinkToNeighbors(neighborsData, _data.links)
+      var selection = d3.select(this);
+      var thetaUnit = Math.PI*2 / neighborsData.length,
+        thetaOffset = thetaUnit *.3
 
-      var thetaUnit = Math.PI*2 / neighborsData.length, thetaOffset = thetaUnit *.2;
-      d3.select(this).append('circle')
+      selection.append('circle')
         .attr('class', 'background')
         .attr('transform', d3.svg.transform().translate([innerWidth/2, innerHeight/2]))
         .attr('r', netRadius)
 
-
-      var ego = d3.select(this).selectAll('.ego')
+      var ego = selection.selectAll('.ego')
         .data([egoData], function(d){return attrs.egoIndex})
 
       ego.enter().append('g')
@@ -62,17 +64,29 @@ d3.egoNetworks = function module() {
       ego.exit()
         .classed({'ego':false, 'neighbor':true})
 
-      var neighbors = d3.select(this).selectAll('.neighbor')
+      var neighborFunc = function(selection, neighbors, callback) {
+        selection.each(function(d) {
+          if ('linkToNeighbors' in d) {
+            d.linkToNeighbors.forEach(function(l) {
+              neighbors.filter(function(n) {
+                return ((l.source == n.neighborIndex || l.target == n.neighborIndex)
+                  && n.neighborIndex !== d.neighborIndex)
+              }).each(callback)
+            })
+          }
+        })
+      }
+
+      var neighbors = selection.selectAll('.neighbor')
         .data(neighborsData, function(d){return d.neighborIndex})
 
       neighbors.enter().append('g')
         .attr('class', 'neighbor node new')
-
-      d3.select(this).selectAll('.neighbor.new')
+      selection.selectAll('.neighbor.new')
         .append('circle')
-      d3.select(this).selectAll('.neighbor.new')
+      selection.selectAll('.neighbor.new')
         .append('text')
-      d3.select(this).selectAll('.neighbor.new')
+      selection.selectAll('.neighbor.new')
         .classed({'new':false})
 
       neighbors.each(function(d,i) {
@@ -87,24 +101,20 @@ d3.egoNetworks = function module() {
             d.linkToNeighbors = d.linkToNeighbors.concat(filtered); // 한쪽에만 링크를 두어서 루프 최소화
           }
         })
-        }).attr('transform', d3.svg.transform().translate(function(d,i) {
-          if ('linkToNeighbors' in d) {
-            d.linkToNeighbors.forEach(function(l) {
-              neighbors.filter(function(n) {
-                return ((l.source == n.neighborIndex || l.target == n.neighborIndex)
-                  && n.neighborIndex !== d.neighborIndex)
-              }).each(function(n) {
-                  if(n.theta - d.theta <= Math.PI) {
-                    d.theta += thetaOffset;
-                    n.theta -= thetaOffset;
-                  } else {
-                    d.theta -= thetaOffset;
-                    n.theta += thetaOffset;
-                  }
-              })
-            })
-          }
-          return [innerWidth*.5+Math.cos(d.theta)*netRadius, innerHeight*.5+Math.sin(d.theta)*netRadius]
+      }).attr('transform', d3.svg.transform().translate(function(d,i) {
+        d3.select(this).call(neighborFunc, neighbors, function(n) {
+              if(n.theta - d.theta <= Math.PI) {
+                //FIXME : 링크 value를 곱해주기
+                d.theta += thetaOffset;
+                n.theta -= thetaOffset;
+              } else {
+                d.theta -= thetaOffset;
+                n.theta += thetaOffset;
+              }
+          });
+          d.x = innerWidth*.5+Math.cos(d.theta)*netRadius;
+          d.y = innerHeight*.5+Math.sin(d.theta)*netRadius;
+          return [d.x, d.y]
         }))
 
       neighbors.selectAll('circle')
@@ -114,6 +124,44 @@ d3.egoNetworks = function module() {
         .attr('text-anchor', 'middle')
         .attr('dy', '.35em')
         .text(function(d) {return d.neighborIndex})
+
+      var two_pi = Math.PI*2, half_pi = Math.PI*.5;
+      var linkRadius = d3.scale.linear()
+        .domain([0, Math.PI])
+        .range([netRadius*.5, netRadius])
+
+      var linkLine = d3.svg.line()
+        .interpolate('basis')
+        .tension(.85)
+        .x(function(d) { return d.x; })
+        .y(function(d) { return d.y; });
+
+      neighbors.each(function(d){
+        var self = d3.select(this);
+        self.call(neighborFunc, neighbors, function(n) {
+          // d-n
+          var distTheta = (Math.abs(n.theta-d.theta)%(two_pi));
+          //console.log(d.neighborIndex, n.neighborIndex, distTheta);
+          if (distTheta <= half_pi) {
+            var meanTheta = distTheta*.5 + d.theta;
+            var r = linkRadius(meanTheta%Math.PI);
+            var center = {x: Math.cos(meanTheta)*r + innerWidth*.5
+              , y: Math.sin(meanTheta)*r + innerHeight*.5}
+            selection.append('path')
+              .datum([{x:d.x, y:d.y}, center, {x:n.x, y:n.y}])
+              .attr('class', 'link')
+              .attr('d', linkLine)
+          } else {
+            selection.append('path')
+              .datum([{x:d.x, y:d.y}, {x:n.x, y:n.y}])
+              .attr('class', 'link')
+              .attr('d', linkLine)
+              //.attr('transform', d3.svg.transform().translate([innerWidth/2, innerHeight/2]))
+          }
+          //console.log(distTheta);
+        });
+      })
+
       /*
       ego.attr('transform', d3.svg.transform().translate([innerWidth/2, innerHeigh/2]))
         .attr('r', )
