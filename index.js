@@ -151,11 +151,6 @@ d3.egoNetworks = function module() {
               .datum([{x:d.x, y:d.y}, center, {x:n.x, y:n.y}])
               .attr('class', 'link')
               .attr('d', linkLine)
-            selection.append('circle')
-              .datum(center)
-              .attr('cx', function(d){return d.x})
-              .attr('cy', function(d){return d.y})
-              .attr('r', 2)
           } else {
             selection.append('path')
               .datum([{x:d.x, y:d.y}, {x:n.x, y:n.y}])
