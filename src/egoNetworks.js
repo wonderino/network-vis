@@ -127,12 +127,12 @@ d3.egoNetworks = function module() {
 
       var two_pi = Math.PI*2, half_pi = Math.PI*.5;
       var linkRadius = d3.scale.linear()
-        .domain([0, Math.PI])
+        .domain([0, half_pi])
         .range([netRadius*.5, netRadius])
 
       var linkLine = d3.svg.line()
-        .interpolate('basis')
-        .tension(.85)
+        .interpolate('cardinal')
+        .tension(0)
         .x(function(d) { return d.x; })
         .y(function(d) { return d.y; });
 
@@ -151,6 +151,11 @@ d3.egoNetworks = function module() {
               .datum([{x:d.x, y:d.y}, center, {x:n.x, y:n.y}])
               .attr('class', 'link')
               .attr('d', linkLine)
+            selection.append('circle')
+              .datum(center)
+              .attr('cx', function(d){return d.x})
+              .attr('cy', function(d){return d.y})
+              .attr('r', 2)
           } else {
             selection.append('path')
               .datum([{x:d.x, y:d.y}, {x:n.x, y:n.y}])

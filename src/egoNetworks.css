@@ -10,8 +10,8 @@
 
 }
 .ego-nets .background {
-  stroke : #333;
-  stroke-dasharray: 5 15 ;
+  stroke : #E8591D;
+  stroke-dasharray: 8 6 ;
   fill : none;
 }
 .ego-nets .ego.node > circle{
@@ -31,7 +31,8 @@
 
 
 .ego-nets path.link {
-  stroke : #000;
+  stroke : #1EA278;
   stroke-width : 1px;
   fill : none;
+  shape-rendering : geometricPrecision;
 }
