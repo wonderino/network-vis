@@ -4,12 +4,24 @@ d3.egoNetworks = function module() {
     height:400,
     egoIndex:0,
     degreeMin:1,
-    degreeMax:10
+    degreeMax:10,
+    sortKey:'value'
   }
   var margin = {top:10, right:10, bottom:10, left:10}
+  var debug = false, sorted = false;
   var size = d3.scale.linear();
   var innerWidth, innerHeight, netRadius;
   var svg;
+
+    // Converts from degrees to radians.
+  Math.radians = function(degrees) {
+    return degrees * Math.PI / 180;
+  };
+
+  // Converts from radians to degrees.
+  Math.degrees = function(radians) {
+    return radians * 180 / Math.PI;
+  };
 
   var exports = function (_selection) {
     _selection.each(function(_data) {
@@ -19,11 +31,14 @@ d3.egoNetworks = function module() {
         innerWidth = attrs.width - margin.left - margin.right;
         innerHeight = attrs.height - margin.top - margin.bottom;
         netRadius = innerWidth*.4;
+
         svg = d3.select(this).append('svg')
           .attr('width', attrs.width)
           .attr('height', attrs.height)
           .append('g')
           .attr('transform', d3.svg.transform().translate([margin.left, margin.top]))
+
+        console.log(_data.links)
       }
       size.domain([attrs.degreeMin,attrs.degreeMax])
         .rangeRound([innerWidth*.02, innerWidth*.15]);
@@ -44,25 +59,12 @@ d3.egoNetworks = function module() {
       var selection = d3.select(this);
       var thetaUnit = Math.PI*2 / neighborsData.length,
         thetaOffset = thetaUnit *.3
+      var two_pi = Math.PI*2, half_pi = Math.PI*.5;
 
       selection.append('circle')
         .attr('class', 'background')
         .attr('transform', d3.svg.transform().translate([innerWidth/2, innerHeight/2]))
         .attr('r', netRadius)
-
-      var ego = selection.selectAll('.ego')
-        .data([egoData], function(d){return attrs.egoIndex})
-
-      ego.enter().append('g')
-        .attr('class', 'ego node')
-        .append('circle')
-
-      ego.attr('transform', d3.svg.transform().translate([innerWidth/2, innerHeight/2]))
-        .selectAll('circle')
-        .attr('r', function(d){return size(d.egoDegree)})
-
-      ego.exit()
-        .classed({'ego':false, 'neighbor':true})
 
       var neighborFunc = function(selection, neighbors, callback) {
         selection.each(function(d) {
@@ -88,9 +90,13 @@ d3.egoNetworks = function module() {
         .append('text')
       selection.selectAll('.neighbor.new')
         .classed({'new':false})
+      /*
+      neighbors.select('g')
+        .attr('transform', d3.svg.transform().translate([innerWidth*.5, innerHeight*.5])rotate(Math.degrees(half_pi)))
+      */
 
       neighbors.each(function(d,i) {
-        d.theta = thetaUnit*i;
+        d.theta = thetaUnit*i ;
         d.linkToNeighbors = []
         neighbors.each(function(n,j) {
           if (j>i) {
@@ -119,13 +125,27 @@ d3.egoNetworks = function module() {
 
       neighbors.selectAll('circle')
         .attr('r', function(d){return size(d.linkToEgo.value)})
+      if (debug) {
+        neighbors.selectAll('text')
+          .attr('text-anchor', 'middle')
+          .attr('dy', '.35em')
+          .text(function(d) {return d.neighborIndex})
+      }
 
       neighbors.selectAll('text')
-        .attr('text-anchor', 'middle')
+        .attr('text-anchor', function(d) {
+          return d.theta > Math.PI ? 'end' : 'start';
+        })
+        .attr('transform', d3.svg.transform().rotate(function(d){
+          return d.theta > Math.PI ? d.theta/Math.PI*180 + 180 :d.theta/Math.PI*180;
+        }).translate(function(d) {
+          var dx = size.range()[0]*1.5;
+          return [d.theta > Math.PI ? -dx : dx, 0]
+        }))
         .attr('dy', '.35em')
-        .text(function(d) {return d.neighborIndex})
+        .text(function(d) {return d.neighbor.name})
 
-      var two_pi = Math.PI*2, half_pi = Math.PI*.5;
+
       var linkRadius = d3.scale.linear()
         .domain([0, half_pi])
         .range([netRadius*.5, netRadius])
@@ -148,19 +168,41 @@ d3.egoNetworks = function module() {
             var center = {x: Math.cos(meanTheta)*r + innerWidth*.5
               , y: Math.sin(meanTheta)*r + innerHeight*.5}
             selection.append('path')
-              .datum([{x:d.x, y:d.y}, center, {x:n.x, y:n.y}])
+              .datum([{node:d, x:d.x, y:d.y}, center, {node:n, x:n.x, y:n.y}])
               .attr('class', 'link')
               .attr('d', linkLine)
           } else {
             selection.append('path')
-              .datum([{x:d.x, y:d.y}, {x:n.x, y:n.y}])
+              .datum([{node:d, x:d.x, y:d.y}, {node:n, x:n.x, y:n.y}])
               .attr('class', 'link')
               .attr('d', linkLine)
-              //.attr('transform', d3.svg.transform().translate([innerWidth/2, innerHeight/2]))
           }
           //console.log(distTheta);
         });
       })
+
+      var ego = selection.selectAll('.ego')
+        .data([egoData], function(d){return attrs.egoIndex})
+
+      ego.enter().append('g')
+        .attr('class', 'ego node new')
+        .append('circle')
+
+      selection.selectAll('.ego.new')
+        .append('text')
+      selection.selectAll('.ego.new')
+        .classed({'new':false})
+
+      ego.attr('transform', d3.svg.transform().translate([innerWidth/2, innerHeight/2]))
+        .selectAll('circle')
+        .attr('r', function(d){return size(d.egoDegree)})
+      ego.selectAll('text')
+        .attr('text-anchor', 'middle')
+        .attr('dy', '.45em')
+        .text(function(d){return d.name})
+      ego.exit()
+        .classed({'ego':false, 'neighbor':true})
+
 
       /*
       ego.attr('transform', d3.svg.transform().translate([innerWidth/2, innerHeigh/2]))
@@ -203,6 +245,28 @@ d3.egoNetworks = function module() {
       return exports;
     }
   }
+
+  function sort() {
+    var nest = d3.nest().
+  }
+
+  exports['sort'] = function (sortKey) {
+    if (sortKey === undefined) {
+        if(sorted) {
+          //unsort
+
+        } else {
+          //sort by sortKey
+        }
+    } else {
+      //unsort
+      attrs.sortKey = 'sortKey';
+      sorted = true;
+    }
+    //sort;
+    return exports;
+  }
+
 
   for (var attr in attrs) {
     if(attrs.hasOwnProperty(attr)) {

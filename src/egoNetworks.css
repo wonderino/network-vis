@@ -12,11 +12,19 @@
 .ego-nets .background {
   stroke : #E8591D;
   stroke-dasharray: 8 6 ;
-  fill : none;
+  fill : #E8591D;
+  fill-opacity : .05;
 }
 .ego-nets .ego.node > circle{
-  stroke : none;
+  stroke : #fff;
+  stroke-width : 8px;
   fill : #E8591D;
+}
+
+.ego-nets .ego.node > text{
+  stroke:none;
+  fill : #111;
+  font-size : 18px;
 }
 
 .ego-nets .neighbor.node > circle{
@@ -26,9 +34,9 @@
 
 .ego-nets .neighbor.node > text{
   stroke : none;
-  fill : #fff;
+  fill : #111;
+  font-size : 12px;
 }
-
 
 .ego-nets path.link {
   stroke : #1EA278;
