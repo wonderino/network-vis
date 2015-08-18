@@ -245,10 +245,11 @@ d3.egoNetworks = function module() {
       return exports;
     }
   }
-
+  /*
   function sort() {
     var nest = d3.nest().
   }
+  */
 
   exports['sort'] = function (sortKey) {
     if (sortKey === undefined) {
