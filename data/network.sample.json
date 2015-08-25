@@ -45,19 +45,19 @@
     "source": 0,
     "year": "2008",
     "target": 2,
-    "value": 1,
+    "value": 2,
     "approved": false
   }, {
     "source": 0,
     "year": "2012",
     "target": 3,
-    "value": 1,
+    "value": 3,
     "approved": false
   }, {
     "source": 0,
     "year": "2011",
     "target": 4,
-    "value": 1,
+    "value": 4,
     "approved": false
   }, {
     "source": 0,
@@ -69,7 +69,7 @@
     "source": 0,
     "year": "2007",
     "target": 6,
-    "value": 1,
+    "value": 2,
     "approved": false
   }, {
     "source": 1,
@@ -81,7 +81,7 @@
     "source": 1,
     "year": "2009",
     "target": 4,
-    "value": 1,
+    "value": 3,
     "approved": false
   }, {
     "source": 1,
@@ -99,7 +99,7 @@
     "source": 3,
     "year": "2008",
     "target": 6,
-    "value": 1,
+    "value": 2,
     "approved": false
   }, {
     "source": 4,
@@ -111,7 +111,7 @@
     "source": 4,
     "year": "2008",
     "target": 6,
-    "value": 1,
+    "value": 2,
     "approved": false
   }]
 }

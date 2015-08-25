@@ -441,7 +441,7 @@ th {
   fill-opacity : .05;
 }
 .ego-nets .ego.node > circle{
-  stroke : #fff;
+  stroke : #fdefea;
   stroke-width : 8px;
   fill : #E8591D;
 }
@@ -449,7 +449,6 @@ th {
 .ego-nets .ego.node > text{
   stroke:none;
   fill : #111;
-  font-size : 18px;
 }
 
 .ego-nets .neighbor.node > circle{
@@ -460,7 +459,7 @@ th {
 .ego-nets .neighbor.node > text{
   stroke : none;
   fill : #111;
-  font-size : 12px;
+  font-size : 10px;
 }
 
 .ego-nets path.link {
