@@ -1,7 +1,7 @@
 d3.egoNetworks = function module() {
   var attrs = {
-    width: 800,
-    height:800,
+    width: 600,
+    height:600,
     egoIndex:0,
     nodeKey:'index',
     degreeMin:1,
@@ -9,6 +9,7 @@ d3.egoNetworks = function module() {
     valueKey:'value', //null 이면 갯수로 센다.
     sortKey:'value', // sortKey가 ordinal 인지 linear 인지
     sortType:'number',
+    nameKey:'full_name',
     sortAscending : false,
     sortUnit : 1,
     isDirected : false
@@ -162,7 +163,7 @@ d3.egoNetworks = function module() {
     ego.selectAll('text')
       .attr('text-anchor', 'middle')
       .attr('dy', '.45em')
-      .text(function(d){return d.name})
+      .text(function(d){return d[attrs.nameKey]})
     ego.exit()
       .classed({'ego':false, 'neighbor':true})
 
@@ -256,7 +257,7 @@ d3.egoNetworks = function module() {
           return [d.theta > Math.PI ? -dx : dx, 0]
         }))
       .attr('dy', '.35em')
-      .text(function(d) {return d.neighbor.name})
+      .text(function(d) {return d.neighbor[attrs.nameKey]})
 
     var linkRadius = d3.scale.linear()
       .domain([0, half_pi])
@@ -294,7 +295,7 @@ d3.egoNetworks = function module() {
       });
     })
 
-
+    /*
     var link = selection.selectAll('.link')
       .data(linkData, function(d){return d[0].node.neighbor[attrs.nodeKey] + '-' +d[d.length-1].node.neighbor[attrs.nodeKey]})
 
@@ -304,7 +305,7 @@ d3.egoNetworks = function module() {
     link.transition().delay(durationUnit*.5).duration(durationUnit)
       .attr('d', linkLine);
     link.exit().remove();
-
+    */
     return selection;
   }
 
