@@ -14,10 +14,17 @@
   <script src="dependencies.js"></script>
   <script src="index.js"></script>
   <script>
-  d3.json('data/network.sample.json', function(_err,_data) {
+  d3.json('data/instastar.json', function(_err,_data) {
     if(_err) {console.log(_err)}
     else {
-      var egoNetworks = d3.egoNetworks().egoIndex(0)
+      var egoNetworks = d3.egoNetworks()
+        .egoIndex('242998577')
+        .sortKey('type')
+        .degreeMax(130)
+        .sortType('string')
+        .nodeKey('user_id')
+        .valueKey(null)
+        .isDirected(true)
 
       d3.select('div.chart.ego-nets')
         .datum(_data)

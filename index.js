@@ -1,13 +1,17 @@
 d3.egoNetworks = function module() {
   var attrs = {
-    width: 400,
-    height:400,
+    width: 800,
+    height:800,
     egoIndex:0,
+    nodeKey:'index',
     degreeMin:1,
     degreeMax:10,
-    sortKey:'value',
+    valueKey:'value', //null 이면 갯수로 센다.
+    sortKey:'value', // sortKey가 ordinal 인지 linear 인지
+    sortType:'number',
     sortAscending : false,
-    sortUnit : 1
+    sortUnit : 1,
+    isDirected : false
   }
   var margin = {top:20, right:20, bottom:20, left:20}
   var debug = false, sorted = false, durationUnit = 400;
@@ -44,7 +48,7 @@ d3.egoNetworks = function module() {
           .attr('class', 'background')
       }
       size.domain([attrs.degreeMin,attrs.degreeMax])
-        .rangeRound([innerWidth*.01, innerWidth*.1]);
+        .rangeRound([innerWidth*.005, innerWidth*.1]);
       svg.datum(_data)
         .call(netInit)
       svg.on('click', function() {
@@ -60,32 +64,81 @@ d3.egoNetworks = function module() {
   function netInit(_selection) {
     _selection.each(function(_data) {
       var selection = d3.select(this);
-      var egoData = getCurEgo(_data.nodes),
-      neighborsData = getNeighbors(_data);
-      egoData.egoIndex = attrs.egoIndex;
-      egoData.egoDegree = neighborsData.reduce(function(pre, cur){
-        return pre + cur.linkToEgo.value
-      },0)
+      var egoAndNeighbors = getEgoAndNeighbors(_data);
+      if (attrs.sortType == 'number') {
+          var sortExtent = d3.extent(egoAndNeighbors.neighbors, function(d) {return trimValForSort(d);})
+          sortRadius.domain(d3.range(sortExtent[0], sortExtent[1]+attrs.sortUnit, attrs.sortUnit))
+      } else {
+          var domain = [];
+          egoAndNeighbors.neighbors.forEach(function(d){
+            if (domain.indexOf(d.linkToEgo[attrs.sortKey]) < 0) {
+                domain.push(d.linkToEgo[attrs.sortKey]);
+            }
+          })
+          sortRadius.domain(domain);
+      }
 
-      neighborsData.forEach(function(d,i) {
-        d.linkToNeighbors = []
-        neighborsData.forEach(function(n,j) {
-          if (j>i) {
-            var filtered = _data.links.filter(function(l) {
-              return (l.source === d.neighborIndex && l.target === n.neighborIndex)
-                || (l.target === d.neighborIndex && l.source === n.neighborIndex)
-            })
-            d.linkToNeighbors = d.linkToNeighbors.concat(filtered); // 한쪽에만 링크를 두어서 루프 최소화
-          }
-        })
-      })
-
-      var sortExtent = d3.extent(neighborsData, function(d) {return trimValForSort(d);})
-      sortRadius.domain(d3.range(sortExtent[0], sortExtent[1]+attrs.sortUnit, attrs.sortUnit))
-      selection.call(drawNeighbors, neighborsData)
-        .call(drawEgo, egoData);
+      selection.call(drawNeighbors, egoAndNeighbors.neighbors)
+        .call(drawEgo, egoAndNeighbors.ego);
     })
     return _selection;
+  }
+
+  function getEgoAndNeighbors(_data) {
+    var getNeighbors = function (_data, egoIndex, egoNeighbors) {
+
+      //FIXME linkToNeighbors 구할때는 neighbors 영역 안에 있는 것만 구한다.
+      var neighbors = [], links = _data.links, nodes = _data.nodes;
+
+      links.forEach(function(l) {
+        if (egoIndex === l.source) {
+          var neighbor = findNode(nodes, l.target)
+          if (!egoNeighbors) {
+            if (l.is_mutual) l.type = 'mutual'
+            else l.type = 'follow'
+            neighbors.push({neighbor:neighbor, linkToEgo:l, neighborIndex:l.target})
+          } else if (findNode(egoNeighbors, neighbor[attrs.nodeKey])) {
+            neighbors.push({linkToEgo:l})
+          }
+        } else if (egoIndex === l.target) {
+          var neighbor = findNode(nodes, l.source)
+          if((attrs.isDirected && !l.is_mutual)) {
+              if(!egoNeighbors) {
+                l.type = 'followed_by'
+                neighbors.push({neighbor:neighbor, linkToEgo:l, neighborIndex:l.source})
+              } else if(findNode(egoNeighbors, neighbor[attrs.nodeKey])) {
+                neighbors.push({linkToEgo:l})
+              }
+          }
+        }
+      })
+      return neighbors;
+    }
+    var egoData = findNode(_data.nodes, attrs.egoIndex)//_data.nodes[attrs.egoIndex]
+    var neighborsData = getNeighbors(_data, attrs.egoIndex)
+
+    neighborsData.forEach(function(a) {
+      a.linkToNeighbors = getNeighbors(_data, a.neighbor[attrs.nodeKey], neighborsData.map(function(d){return d.neighbor})).map(function(d){return d.linkToEgo});
+    });
+
+    if(attrs.valueKey) {
+      egoData.egoDegree = 0;
+      neighborsData.forEach(function(n) {
+        egoData.egoDegree += n.linkToEgo[attrs.valueKey]
+      })
+    } else {
+      egoData.egoDegree = neighborsData.length;
+    }
+    return {ego:egoData, neighbors:neighborsData}
+  }
+
+  function findNode(nodes, value) {
+    for (var i = 0; i < nodes.length ; i++) {
+      if (nodes[i][attrs.nodeKey] == value) {
+        return nodes[i];
+      }
+    }
+    return null;
   }
 
   function drawEgo(selection, egoData) {
@@ -117,7 +170,7 @@ d3.egoNetworks = function module() {
   }
 
   function drawNeighbors(selection, neighborsData) {
-    var thetaUnit = Math.PI*2 / neighborsData.length,
+    var thetaUnit = Math.PI*2/ neighborsData.length,
       thetaOffset = thetaUnit *.3
     var two_pi = Math.PI*2, half_pi = Math.PI*.5;
 
@@ -140,7 +193,7 @@ d3.egoNetworks = function module() {
           d.linkToNeighbors.forEach(function(l) {
             neighbors.filter(function(n) {
               return ((l.source == n.neighborIndex || l.target == n.neighborIndex)
-                && n.neighborIndex !== d.neighborIndex)
+                && (n.neighborIndex !== d.neighborIndex))
             }).each(callback)
           })
         }
@@ -148,6 +201,7 @@ d3.egoNetworks = function module() {
     }
     var setNeighborPos = function(selection) {
       selection.each(function(d) {
+        /*
         d3.select(this).call(neighborFunc, neighbors, function(n) {
               if(n.theta - d.theta <= Math.PI) {
                 //FIXME : 링크 value를 곱해주기
@@ -158,7 +212,10 @@ d3.egoNetworks = function module() {
                 n.theta += thetaOffset;
               }
           });
-          var radius = (sorted ? sortRadius(trimValForSort(d)) : netRadius);
+          */
+          var sortVal = d.linkToEgo[attrs.sortKey];
+          var radius = (sorted ? sortRadius(attrs.sortType=== 'number'?  trimValForSort(sortVal): sortVal) : netRadius);
+
           d.x = innerWidth*.5+Math.cos(d.theta)*radius;
           d.y = innerHeight*.5+Math.sin(d.theta)*radius;
       })
@@ -187,28 +244,28 @@ d3.egoNetworks = function module() {
     .attr('transform', d3.svg.transform().translate(function(d,i) {return [d.x, d.y] }))
 
     neighbors.selectAll('circle')
-      .attr('r', function(d){return size(d.linkToEgo.value)})
+      .attr('r', function(d){return size(attrs.valueKey? d.linkToEgo[attrs.valueKey] : 1)})
 
     neighbors.selectAll('text')
       .attr('text-anchor', function(d) {
         return d.theta > Math.PI ? 'end' : 'start';
       }).attr('transform', d3.svg.transform().rotate(function(d){
         return d.theta > Math.PI ? d.theta/Math.PI*180 + 180 :d.theta/Math.PI*180;
-      }).translate(function(d) {
-        var dx = size(d.linkToEgo.value) + 2;
-        return [d.theta > Math.PI ? -dx : dx, 0]
-      })).attr('dy', '.35em')
+        }).translate(function(d) {
+          var dx = size(attrs.valueKey ? d.linkToEgo : 1) + 2;
+          return [d.theta > Math.PI ? -dx : dx, 0]
+        }))
+      .attr('dy', '.35em')
       .text(function(d) {return d.neighbor.name})
 
     var linkRadius = d3.scale.linear()
       .domain([0, half_pi])
 
     var linkLine = d3.svg.line()
-      .interpolate('cardinal')
-      .tension(0)
+      //.interpolate('cardinal')
+      //.tension(1)
       .x(function(d) { return d.x; })
       .y(function(d) { return d.y; });
-
 
     var linkData = []
     neighbors.each(function(d){
@@ -219,22 +276,27 @@ d3.egoNetworks = function module() {
         if (distTheta <= half_pi) {
           var meanTheta = distTheta*.5 + d.theta;
           if (sorted) {
-            linkRadius.range([sortRadius(trimValForSort(d)), sortRadius(trimValForSort(n))])
+            var sortValA = d.linkToEgo[attrs.sortKey], sortValB = n.linkToEgo[attrs.sortKey];
+            linkRadius.range(
+              attrs.sortType === 'number' ? [sortRadius(trimValForSort(sortValA)), sortRadius(trimValForSort(sortValB))] : [sortRadius(sortValA), sortRadius(sortValB)]
+            )
           } else {
             linkRadius.range([netRadius*.5, netRadius])
           }
           var r = linkRadius(meanTheta%Math.PI);
           var center = {x: Math.cos(meanTheta)*r + innerWidth*.5
             , y: Math.sin(meanTheta)*r + innerHeight*.5}
-          linkData.push([{node:d, x:d.x, y:d.y}, center, {node:n, x:n.x, y:n.y}])
+          linkData.push([{node:d, x:d.x, y:d.y}, {node:n, x:n.x, y:n.y}])
+          //linkData.push([{node:d, x:d.x, y:d.y}, center, {node:n, x:n.x, y:n.y}])
         } else {
           linkData.push([{node:d, x:d.x, y:d.y}, {node:n, x:n.x, y:n.y}])
         }
       });
     })
 
+
     var link = selection.selectAll('.link')
-      .data(linkData, function(d){return d[0].node.neighbor.name + '-' +d[d.length-1].node.neighbor.name})
+      .data(linkData, function(d){return d[0].node.neighbor[attrs.nodeKey] + '-' +d[d.length-1].node.neighbor[attrs.nodeKey]})
 
     link.enter().append('path')
       .attr('class', 'link')
@@ -246,21 +308,8 @@ d3.egoNetworks = function module() {
     return selection;
   }
 
-  function getNeighbors(_data) {
-    var neighbors = []
-    _data.links.forEach(function(l,i) {
-      if (attrs.egoIndex === l.source) {
-        neighbors.push({neighbor:_data.nodes[l.target], linkToEgo:l, neighborIndex:l.target})
-      } else if (attrs.egoIndex === l.target) {
-        neighbors.push({neighbor:_data.nodes[l.source], linkToEgo:l, neighborIndex:l.source})
-      }
-    })
-    return neighbors;
-  }
 
-  function getCurEgo(nodes) {
-    return nodes[attrs.egoIndex]
-  }
+
 
   function accessor(_attr) {
     return function(value) {
