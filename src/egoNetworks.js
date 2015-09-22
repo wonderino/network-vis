@@ -9,14 +9,16 @@ d3.egoNetworks = function module() {
     valueKey:'value', //null 이면 갯수로 센다.
     sortKey:'value', // sortKey가 ordinal 인지 linear 인지
     sortType:'number',
-    nameKey:'full_name',
+    nameKey:'ent_name',
     sortAscending : false,
     sortUnit : 1,
-    isDirected : false
+    isDirected : false,
+    hierKeys : ['team', 'company'],
+    colorKey : ['company']
   }
-  var margin = {top:20, right:20, bottom:20, left:20}
+  var margin = {top:40, right:40, bottom:40, left:40}
   var debug = false, sorted = false, durationUnit = 400;
-  var size = d3.scale.linear();
+  var size = d3.scale.linear(), color = d3.scale.category20();
   var innerWidth, innerHeight, netRadius, minRadius, maxRadius;
   var sortRadius = d3.scale.ordinal();
   var svg;
@@ -48,6 +50,8 @@ d3.egoNetworks = function module() {
         svg.append('g')
           .attr('class', 'background')
       }
+      var colorExtent = d3.set(_data.nodes.map(function(d){return d[attrs.colorKey]})).values();
+      color.domain(colorExtent);
       size.domain([attrs.degreeMin,attrs.degreeMax])
         .rangeRound([innerWidth*.005, innerWidth*.1]);
       svg.datum(_data)
@@ -78,7 +82,6 @@ d3.egoNetworks = function module() {
           })
           sortRadius.domain(domain);
       }
-
       selection.call(drawNeighbors, egoAndNeighbors.neighbors)
         .call(drawEgo, egoAndNeighbors.ego);
     })
@@ -94,25 +97,32 @@ d3.egoNetworks = function module() {
       links.forEach(function(l) {
         if (egoIndex === l.source) {
           var neighbor = findNode(nodes, l.target)
-          if (!egoNeighbors) {
-            if (l.is_mutual) l.type = 'mutual'
-            else l.type = 'follow'
-            neighbors.push({neighbor:neighbor, linkToEgo:l, neighborIndex:l.target})
-          } else if (findNode(egoNeighbors, neighbor[attrs.nodeKey])) {
-            neighbors.push({linkToEgo:l})
+          if (neighbor[attrs.nameKey] !== '-') { // 공식 계정은 걸러내기
+            if (!egoNeighbors) {
+              if (l.is_mutual) l.type = 'mutual'
+              else l.type = 'follow'
+              neighbors.push({neighbor:neighbor, linkToEgo:l, neighborIndex:l.target})
+            } else {
+              var egoNeighbor = findNode(egoNeighbors, neighbor[attrs.nodeKey])
+              if (egoNeighbor) neighbors.push({linkToEgo:l, neighbor:egoNeighbor})
+            }
           }
         } else if (egoIndex === l.target) {
           var neighbor = findNode(nodes, l.source)
-          if((attrs.isDirected && !l.is_mutual)) {
-              if(!egoNeighbors) {
-                l.type = 'followed_by'
-                neighbors.push({neighbor:neighbor, linkToEgo:l, neighborIndex:l.source})
-              } else if(findNode(egoNeighbors, neighbor[attrs.nodeKey])) {
-                neighbors.push({linkToEgo:l})
-              }
+          if (neighbor[attrs.nameKey] !== '-') { // 공식 계정은 걸러내기
+            if((attrs.isDirected && !l.is_mutual)) {
+                if(!egoNeighbors) {
+                  l.type = 'followed_by'
+                  neighbors.push({neighbor:neighbor, linkToEgo:l, neighborIndex:l.source})
+                } else {
+                  var egoNeighbor = findNode(egoNeighbors, neighbor[attrs.nodeKey])
+                  if (egoNeighbor) neighbors.push({linkToEgo:l, neighbor:egoNeighbor})
+                }
+            }
           }
         }
       })
+      neighbors = neighbors.sort(function(a,b){return a.neighbor[attrs.colorKey].localeCompare(b.neighbor[attrs.colorKey])});
       return neighbors;
     }
     var egoData = findNode(_data.nodes, attrs.egoIndex)//_data.nodes[attrs.egoIndex]
@@ -245,16 +255,17 @@ d3.egoNetworks = function module() {
     .attr('transform', d3.svg.transform().translate(function(d,i) {return [d.x, d.y] }))
 
     neighbors.selectAll('circle')
-      .attr('r', function(d){return size(attrs.valueKey? d.linkToEgo[attrs.valueKey] : 1)})
+      .attr('r', function(d){return attrs.valueKey && d.linkToEgo[attrs.valueKey] ? size(d.linkToEgo[attrs.valueKey]) : 4})
+      .style('fill', function(d){return color(d.neighbor[attrs.colorKey]);})
 
     neighbors.selectAll('text')
       .attr('text-anchor', function(d) {
-        return d.theta > Math.PI ? 'end' : 'start';
+        return (d.theta + half_pi)%two_pi > Math.PI ? 'end' : 'start';
       }).attr('transform', d3.svg.transform().rotate(function(d){
-        return d.theta > Math.PI ? d.theta/Math.PI*180 + 180 :d.theta/Math.PI*180;
+        return (d.theta + half_pi)%two_pi > Math.PI ?   Math.degrees(d.theta) + 180 : Math.degrees(d.theta);
         }).translate(function(d) {
           var dx = size(attrs.valueKey ? d.linkToEgo : 1) + 2;
-          return [d.theta > Math.PI ? -dx : dx, 0]
+          return [(d.theta + half_pi)%two_pi > Math.PI ? -dx : dx, 0]
         }))
       .attr('dy', '.35em')
       .text(function(d) {return d.neighbor[attrs.nameKey]})
@@ -309,8 +320,9 @@ d3.egoNetworks = function module() {
     return selection;
   }
 
+  function packageHierarchy(nodes) {
 
-
+  }
 
   function accessor(_attr) {
     return function(value) {
