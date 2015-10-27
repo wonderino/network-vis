@@ -185,12 +185,42 @@ d3.egoNetworks = function module() {
       thetaOffset = thetaUnit *.3
     var two_pi = Math.PI*2, half_pi = Math.PI*.5;
 
-    var background = selection.select('.background').selectAll('circle')
-        .data(function(){return sorted ? sortRadius.range(): [netRadius]}, function(d,i){return i})
+    var background = selection.select('.background')
+      .selectAll('.background-circle')
+        .data(function(d){
+          return sorted ? d3.zip(sortRadius.range(), sortRadius.domain())
+            : [[netRadius]]},
+          function(d){return d[0]});
 
-    background.enter().append('circle')
+    var backgroundEnter = background.enter().append('g')
       .attr('transform', d3.svg.transform().translate([innerWidth/2, innerHeight/2]))
-      .attr('r', netRadius)
+      .attr('class', 'background-circle')
+    //zip
+    var circle = backgroundEnter.append('circle')
+        .attr('r', 0)
+
+      circle.transition().duration(durationUnit)
+        .attr('r', function(d){return d[0]})
+
+    if (sorted) {
+      var text = background.selectAll('text')
+        .data(function(d){return [d]})
+      .enter().append('text')
+        .attr('text-anchor','end')
+        .text(function(d){return d[1]})
+        .style('opacity', 0)
+        .attr('x', 0)
+        .attr('dx', '-.45em')
+        .attr('dy', '.35em')
+
+      text.transition().duration(durationUnit)
+        .style('opacity', 1)
+        .attr('x', function(d){return d[0]})
+
+    } else {
+      background.selectAll('text')
+        .remove();
+    }
 
     background.transition()
       .duration(durationUnit)
@@ -236,17 +266,14 @@ d3.egoNetworks = function module() {
     var neighbors = selection.selectAll('.neighbor')
       .data(neighborsData, function(d){return d.neighborIndex})
 
-    neighbors.enter().append('g')
-      .attr('class', 'neighbor node new')
+    var neighborsEnter = neighbors.enter().append('g')
+      .attr('class', 'neighbor node')
       .each(function(d) {d.x = innerWidth*.5; d.y = innerHeight*.5})
       .attr('transform', d3.svg.transform().translate(function(d,i) {return [d.x, d.y] }))
+      .call(setNeighborInteraction)
 
-    selection.selectAll('.neighbor.new')
-      .append('circle')
-    selection.selectAll('.neighbor.new')
-      .append('text')
-    selection.selectAll('.neighbor.new')
-      .classed({'new':false})
+    neighborsEnter.append('circle');
+    neighborsEnter.append('text')
 
     neighbors.each(function(d,i) {
       d.theta = thetaUnit*i;
@@ -318,6 +345,36 @@ d3.egoNetworks = function module() {
     link.exit().remove();
     */
     return selection;
+  }
+
+  function setNeighborInteraction(_selection) {
+    function _isNeighbor(index, linkToNeighbors) {
+      for (var i = 0 ; i < linkToNeighbors.length; i++) {
+        if (index === linkToNeighbors[i].source || index === linkToNeighbors[i].target) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    _selection.on('mouseenter.neighbor', function(d){
+      d3.select(this).classed({'hover': true})
+      var curIndex = d.neighbor[attrs.nodeKey]
+      var linkToNeighbors = d.linkToNeighbors;
+      var neighbors = d3.select(d3.select(this).node().parentNode)
+        .selectAll('.neighbor')
+        .filter(function(n) {
+          var index = n.neighbor[attrs.nodeKey];
+          if (index !== curIndex) return _isNeighbor(index, linkToNeighbors);
+          return false;
+        }).classed({'hover':true})
+      //TODO : find neighbors who are not in the network
+    }).on('mouseleave', function() {
+      d3.select(d3.select(this).node().parentNode)
+        .selectAll('.neighbor.hover').classed({'hover': false})
+    }).on('click.neighbor', function(d) {
+      d3.event.stopPropagation();
+    })
   }
 
   function packageHierarchy(nodes) {

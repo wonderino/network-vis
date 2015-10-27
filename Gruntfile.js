@@ -16,7 +16,7 @@ module.exports = function (grunt) {
             'src/*.js',
           ],
           "index.css" : [
-            'bower_components/normalize.css/normalize.css',
+            // 'bower_components/normalize.css/normalize.css',
             'src/*.css'
           ]
         }

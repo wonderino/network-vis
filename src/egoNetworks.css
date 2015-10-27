@@ -1,4 +1,7 @@
+@import url(//spoqa.github.io/spoqa-han-sans/css/SpoqaHanSans-kr.css);
+
 .ego-nets {
+  font-family: 'Spoqa Han Sans', 'Sans-serif';
   margin : 0 auto;
 }
 
@@ -9,12 +12,19 @@
 .ego-nets .ego.node {
 
 }
-.ego-nets .background {
+.ego-nets .background circle{
   stroke : #E8591D;
   stroke-dasharray: 8 6 ;
   fill : #E8591D;
   fill-opacity : .05;
 }
+
+.ego-nets .background text{
+  fill : #8a8a8a;
+  font-size : 10px;
+}
+
+
 .ego-nets .ego.node > circle{
   stroke : #fdefea;
   stroke-width : 8px;
@@ -30,11 +40,21 @@
   stroke : none;
   fill : #1EA278;
 }
+.ego-nets .neighbor.node.hover > circle {
+  stroke : #aaa;
+  stroke-width : 2px;
+}
 
 .ego-nets .neighbor.node > text{
   stroke : none;
   fill : #111;
   font-size : 10px;
+}
+
+
+.ego-nets .neighbor.node.hover > text{
+  font-weight: 600;
+  font-size : 11px;
 }
 
 .ego-nets path.link {
