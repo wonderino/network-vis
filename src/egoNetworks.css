@@ -3,7 +3,7 @@
 }
 
 .ego-nets .node {
-
+  cursor : pointer;
 }
 
 .ego-nets .ego.node {
