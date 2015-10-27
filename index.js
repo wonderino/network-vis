@@ -21,6 +21,7 @@ d3.egoNetworks = function module() {
   var size = d3.scale.linear(), color = d3.scale.category20();
   var innerWidth, innerHeight, netRadius, minRadius, maxRadius;
   var sortRadius = d3.scale.ordinal();
+  var nodeAndLink;
   var svg;
 
   Math.radians = function(degrees) {
@@ -33,6 +34,7 @@ d3.egoNetworks = function module() {
   var exports = function (_selection) {
     _selection.each(function(_data) {
       if(!svg) {
+        linkAndNode = _data;
         d3.select(this).style('width', attrs.width + 'px')
           .style('height', attrs.height + 'px')
         innerWidth = attrs.width - margin.left - margin.right;
@@ -44,21 +46,21 @@ d3.egoNetworks = function module() {
         svg = d3.select(this).append('svg')
           .attr('width', attrs.width)
           .attr('height', attrs.height)
-          .append('g')
+            .append('g')
           .attr('transform', d3.svg.transform().translate([margin.left, margin.top]))
 
         svg.append('g')
-          .attr('class', 'background')
+          .attr('class', 'background');
       }
-      var colorExtent = d3.set(_data.nodes.map(function(d){return d[attrs.colorKey]})).values();
+      var colorExtent = d3.set(linkAndNode.nodes.map(function(d){return d[attrs.colorKey]})).values();
       color.domain(colorExtent);
       size.domain([attrs.degreeMin,attrs.degreeMax])
         .rangeRound([innerWidth*.005, innerWidth*.1]);
-      svg.datum(_data)
+      svg.datum(linkAndNode)
         .call(netInit)
-      svg.on('click', function() {
-        exports.sort();
-      })
+        .on('click', function() {
+          exports.sort();
+        })
     })
   }
 
@@ -69,7 +71,7 @@ d3.egoNetworks = function module() {
   function netInit(_selection) {
     _selection.each(function(_data) {
       var selection = d3.select(this);
-      var egoAndNeighbors = getEgoAndNeighbors(_data);
+      var egoAndNeighbors = getEgoAndNeighbors();
       if (attrs.sortType == 'number') {
           var sortExtent = d3.extent(egoAndNeighbors.neighbors, function(d) {return trimValForSort(d);})
           sortRadius.domain(d3.range(sortExtent[0], sortExtent[1]+attrs.sortUnit, attrs.sortUnit))
@@ -88,12 +90,12 @@ d3.egoNetworks = function module() {
     return _selection;
   }
 
-  function getEgoAndNeighbors(_data) {
-    var getNeighbors = function (_data, egoIndex, egoNeighbors) {
+  function getEgoAndNeighbors(egoIndex) {
+    egoIndex = egoIndex || attrs.egoIndex;
 
-      //FIXME linkToNeighbors 구할때는 neighbors 영역 안에 있는 것만 구한다.
-      var neighbors = [], links = _data.links, nodes = _data.nodes;
+    var getNeighbors = function (egoIndex, egoNeighbors) {
 
+      var neighbors = [], links = linkAndNode.links, nodes = linkAndNode.nodes;
       links.forEach(function(l) {
         if (egoIndex === l.source) {
           var neighbor = findNode(nodes, l.target)
@@ -125,11 +127,12 @@ d3.egoNetworks = function module() {
       neighbors = neighbors.sort(function(a,b){return a.neighbor[attrs.colorKey].localeCompare(b.neighbor[attrs.colorKey])});
       return neighbors;
     }
-    var egoData = findNode(_data.nodes, attrs.egoIndex)//_data.nodes[attrs.egoIndex]
-    var neighborsData = getNeighbors(_data, attrs.egoIndex)
+    var egoData = findNode(linkAndNode.nodes, egoIndex)//_data.nodes[attrs.egoIndex]
+    var neighborsData = getNeighbors(egoIndex)
 
     neighborsData.forEach(function(a) {
-      a.linkToNeighbors = getNeighbors(_data, a.neighbor[attrs.nodeKey], neighborsData.map(function(d){return d.neighbor})).map(function(d){return d.linkToEgo});
+      a.linkToNeighbors = getNeighbors(a.neighbor[attrs.nodeKey],
+        neighborsData.map(function(d){return d.neighbor})).map(function(d){return d.linkToEgo});
     });
 
     if(attrs.valueKey) {
@@ -347,6 +350,27 @@ d3.egoNetworks = function module() {
     return selection;
   }
 
+  function drawRestNeighbors(_selection, neighbors) { // _selection == centerNode;
+    var sub = svg.selectAll('.sub')
+      .data([neighbors])
+
+    var x = _selection.datum().x, y= _selection.datum().y;
+    sub.enter().append('g')
+      .attr('class', 'sub')
+
+    sub.attr('transform', d3.svg.transform().translate([x,y]));
+
+    var neighbor = sub.selectAll('.neighbor.node')
+      .data(function(d){return d}, function(d){return d.neighborIndex})
+    
+
+    neighbor.enter().append('g')
+      .attr('class', 'neighbor node')
+
+    neighbor.exit().remove();
+
+  }
+
   function setNeighborInteraction(_selection) {
     function _isNeighbor(index, linkToNeighbors) {
       for (var i = 0 ; i < linkToNeighbors.length; i++) {
@@ -369,11 +393,18 @@ d3.egoNetworks = function module() {
           return false;
         }).classed({'hover':true})
       //TODO : find neighbors who are not in the network
+
+      var egoAndNeighbors = getEgoAndNeighbors(curIndex);
+      var restNeighbors = egoAndNeighbors.neighbors.filter(function(n) {
+        return !(_isNeighbor(n.neighbor.index, linkToNeighbors))
+      })
+      //restNeighbors.
+      d3.select(this).call(drawRestNeighbors, restNeighbors);
     }).on('mouseleave', function() {
       d3.select(d3.select(this).node().parentNode)
         .selectAll('.neighbor.hover').classed({'hover': false})
     }).on('click.neighbor', function(d) {
-      d3.event.stopPropagation();
+
     })
   }
 
