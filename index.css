@@ -63,3 +63,7 @@
   fill : none;
   shape-rendering : geometricPrecision;
 }
+
+.ego-nets .sub .neighbor.node circle{
+  stroke : none;
+}

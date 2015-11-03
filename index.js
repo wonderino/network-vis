@@ -3,7 +3,7 @@ d3.egoNetworks = function module() {
     width: 600,
     height:600,
     egoIndex:0,
-    nodeKey:'index',
+    nodeKey:'user_id',
     degreeMin:1,
     degreeMax:10,
     valueKey:'value', //null 이면 갯수로 센다.
@@ -30,6 +30,8 @@ d3.egoNetworks = function module() {
   Math.degrees = function(radians) {
     return radians * 180 / Math.PI;
   };
+  Math.TWO_PI = Math.PI*2;
+  Math.HALF_PI = Math.PI*.5;
 
   var exports = function (_selection) {
     _selection.each(function(_data) {
@@ -40,7 +42,7 @@ d3.egoNetworks = function module() {
         innerWidth = attrs.width - margin.left - margin.right;
         innerHeight = attrs.height - margin.top - margin.bottom;
         netRadius = innerWidth*.5*.75;
-        maxRadius = innerWidth*.5*.95;
+        maxRadius = innerWidth*.5*.90;
         minRadius = innerWidth*.5*.45;
         sortRadius.rangeRoundPoints(attrs.sortAscending ? [minRadius, maxRadius] : [maxRadius, minRadius]);
         svg = d3.select(this).append('svg')
@@ -186,7 +188,7 @@ d3.egoNetworks = function module() {
   function drawNeighbors(selection, neighborsData) {
     var thetaUnit = Math.PI*2/ neighborsData.length,
       thetaOffset = thetaUnit *.3
-    var two_pi = Math.PI*2, half_pi = Math.PI*.5;
+
 
     var background = selection.select('.background')
       .selectAll('.background-circle')
@@ -243,28 +245,7 @@ d3.egoNetworks = function module() {
         }
       })
     }
-    var setNeighborPos = function(selection) {
-      selection.each(function(d) {
-        /*
-        d3.select(this).call(neighborFunc, neighbors, function(n) {
-              if(n.theta - d.theta <= Math.PI) {
-                //FIXME : 링크 value를 곱해주기
-                d.theta += thetaOffset;
-                n.theta -= thetaOffset;
-              } else {
-                d.theta -= thetaOffset;
-                n.theta += thetaOffset;
-              }
-          });
-          */
-          var sortVal = d.linkToEgo[attrs.sortKey];
-          var radius = (sorted ? sortRadius(attrs.sortType=== 'number'?  trimValForSort(sortVal): sortVal) : netRadius);
 
-          d.x = innerWidth*.5+Math.cos(d.theta)*radius;
-          d.y = innerHeight*.5+Math.sin(d.theta)*radius;
-      })
-      return selection;
-    }
 
     var neighbors = selection.selectAll('.neighbor')
       .data(neighborsData, function(d){return d.neighborIndex})
@@ -290,18 +271,18 @@ d3.egoNetworks = function module() {
 
     neighbors.selectAll('text')
       .attr('text-anchor', function(d) {
-        return (d.theta + half_pi)%two_pi > Math.PI ? 'end' : 'start';
+        return (d.theta + Math.HALF_PI)%Math.TWO_PI > Math.PI ? 'end' : 'start';
       }).attr('transform', d3.svg.transform().rotate(function(d){
-        return (d.theta + half_pi)%two_pi > Math.PI ?   Math.degrees(d.theta) + 180 : Math.degrees(d.theta);
+        return (d.theta + Math.HALF_PI)%Math.TWO_PI > Math.PI ?   Math.degrees(d.theta) + 180 : Math.degrees(d.theta);
         }).translate(function(d) {
           var dx = size(attrs.valueKey ? d.linkToEgo : 1) + 2;
-          return [(d.theta + half_pi)%two_pi > Math.PI ? -dx : dx, 0]
+          return [(d.theta + Math.HALF_PI)%Math.TWO_PI > Math.PI ? -dx : dx, 0]
         }))
       .attr('dy', '.35em')
       .text(function(d) {return d.neighbor[attrs.nameKey]})
 
     var linkRadius = d3.scale.linear()
-      .domain([0, half_pi])
+      .domain([0, Math.HALF_PI])
 
     var linkLine = d3.svg.line()
       //.interpolate('cardinal')
@@ -314,8 +295,8 @@ d3.egoNetworks = function module() {
       var self = d3.select(this);
       self.call(neighborFunc, neighbors, function(n) {
         // d-n
-        var distTheta = (Math.abs(n.theta-d.theta)%(two_pi));
-        if (distTheta <= half_pi) {
+        var distTheta = (Math.abs(n.theta-d.theta)%(Math.TWO_PI));
+        if (distTheta <= Math.HALF_PI) {
           var meanTheta = distTheta*.5 + d.theta;
           if (sorted) {
             var sortValA = d.linkToEgo[attrs.sortKey], sortValB = n.linkToEgo[attrs.sortKey];
@@ -350,31 +331,87 @@ d3.egoNetworks = function module() {
     return selection;
   }
 
-  function drawRestNeighbors(_selection, neighbors) { // _selection == centerNode;
+  function drawRestNeighbors(_selection, neighborsData) { // _selection == centerNode;
+    var thetaUnit = Math.PI*2/ neighborsData.length,
+      thetaOffset = thetaUnit *.3
     var sub = svg.selectAll('.sub')
-      .data([neighbors])
+      .data([neighborsData])
 
-    var x = _selection.datum().x, y= _selection.datum().y;
+    var cx = _selection.datum().x, cy= _selection.datum().y;
     sub.enter().append('g')
       .attr('class', 'sub')
 
-    sub.attr('transform', d3.svg.transform().translate([x,y]));
+    //sub.attr('transform', d3.svg.transform().translate([cx,cy]));
 
-    var neighbor = sub.selectAll('.neighbor.node')
+    var neighbors = sub.selectAll('.neighbor.node')
       .data(function(d){return d}, function(d){return d.neighborIndex})
-    
 
-    neighbor.enter().append('g')
-      .attr('class', 'neighbor node')
+    var neighborsEnter = neighbors.enter().append('g')
+      .attr('class', 'neighbor node sub')
 
-    neighbor.exit().remove();
+    neighbors.each(function(d,i) {
+      d.theta = thetaUnit*i;
+    }).call(setNeighborPos, true)
+    .attr('transform', d3.svg.transform().translate(function(d,i) {return [d.x, d.y] }))
+    .style('opacity', 0)
 
+    neighborsEnter.append('circle');
+    neighborsEnter.append('text');
+
+    neighbors.transition().delay(durationUnit*.5).duration(durationUnit)
+      .style('opacity', 1)
+
+    neighbors.selectAll('circle')
+      .attr('r', function(d){return (attrs.valueKey && d.linkToEgo[attrs.valueKey] ? size(d.linkToEgo[attrs.valueKey]) : 4)*.75})
+      .style('fill', function(d){return color(d.neighbor[attrs.colorKey]);})
+
+    neighbors.selectAll('text')
+      .data(function(d){return [d]})
+      .attr('text-anchor', function(d) {
+        return (d.theta + Math.HALF_PI)%Math.TWO_PI > Math.PI ? 'end' : 'start';
+      }).attr('transform', d3.svg.transform().rotate(function(d){
+        return (d.theta + Math.HALF_PI)%Math.TWO_PI > Math.PI ?   Math.degrees(d.theta) + 180 : Math.degrees(d.theta);
+        }).translate(function(d) {
+          var dx = size(attrs.valueKey ? d.linkToEgo : 1) + 2;
+          return [(d.theta + Math.HALF_PI)%Math.TWO_PI > Math.PI ? -dx : dx, 0]
+        }))
+      .attr('dy', '.35em')
+      .text(function(d) {return d.neighbor[attrs.nameKey]})
+
+    neighbors.exit().remove();
+    return _selection;
+  }
+  function setNeighborPos(selection,  isRest) {
+    var cx = innerWidth*.5, cy =  innerHeight*.5;
+    selection.each(function(d) {
+      /*
+      d3.select(this).call(neighborFunc, neighbors, function(n) {
+            if(n.theta - d.theta <= Math.PI) {
+              //FIXME : 링크 value를 곱해주기
+              d.theta += thetaOffset;
+              n.theta -= thetaOffset;
+            } else {
+              d.theta -= thetaOffset;
+              n.theta += thetaOffset;
+            }
+        });
+        */
+        var sortVal = d.linkToEgo[attrs.sortKey];
+        var radius = (sorted ? sortRadius(attrs.sortType=== 'number'?  trimValForSort(sortVal): sortVal) : netRadius);
+        if (isRest) {
+          radius = (sorted ? sortRadius.rangeExtent()[1]: netRadius) * 1.25;
+        }
+        d.x = cx+Math.cos(d.theta)*radius;
+        d.y = cy+Math.sin(d.theta)*radius;
+    })
+    return selection;
   }
 
   function setNeighborInteraction(_selection) {
     function _isNeighbor(index, linkToNeighbors) {
       for (var i = 0 ; i < linkToNeighbors.length; i++) {
-        if (index === linkToNeighbors[i].source || index === linkToNeighbors[i].target) {
+        if (index === linkToNeighbors[i].source
+            || index === linkToNeighbors[i].target) {
           return true;
         }
       }
@@ -383,28 +420,27 @@ d3.egoNetworks = function module() {
 
     _selection.on('mouseenter.neighbor', function(d){
       d3.select(this).classed({'hover': true})
-      var curIndex = d.neighbor[attrs.nodeKey]
+      var curIndex = d.neighborIndex;
       var linkToNeighbors = d.linkToNeighbors;
       var neighbors = d3.select(d3.select(this).node().parentNode)
         .selectAll('.neighbor')
         .filter(function(n) {
-          var index = n.neighbor[attrs.nodeKey];
+          var index = n.neighborIndex;
           if (index !== curIndex) return _isNeighbor(index, linkToNeighbors);
           return false;
         }).classed({'hover':true})
-      //TODO : find neighbors who are not in the network
 
       var egoAndNeighbors = getEgoAndNeighbors(curIndex);
       var restNeighbors = egoAndNeighbors.neighbors.filter(function(n) {
-        return !(_isNeighbor(n.neighbor.index, linkToNeighbors))
+        return !(_isNeighbor(n.neighborIndex, linkToNeighbors))
       })
-      //restNeighbors.
+      //FIXME : 존재하는 친구 제외
       d3.select(this).call(drawRestNeighbors, restNeighbors);
     }).on('mouseleave', function() {
       d3.select(d3.select(this).node().parentNode)
         .selectAll('.neighbor.hover').classed({'hover': false})
     }).on('click.neighbor', function(d) {
-
+      d3.event.stopPropagation();
     })
   }
 
