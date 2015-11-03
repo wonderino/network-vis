@@ -69,23 +69,25 @@ d3.egoNetworks = function module() {
   function trimValForSort (d) {
     return Math.floor((d.linkToEgo[attrs.sortKey])/attrs.sortUnit) * attrs.sortUnit
   }
-
+  function setSortRadius(egoAndNeighbors) {
+    if (attrs.sortType == 'number') {
+        var sortExtent = d3.extent(egoAndNeighbors.neighbors, function(d) {return trimValForSort(d);})
+        sortRadius.domain(d3.range(sortExtent[0], sortExtent[1]+attrs.sortUnit, attrs.sortUnit))
+    } else {
+        var domain = [];
+        egoAndNeighbors.neighbors.forEach(function(d){
+          if (domain.indexOf(d.linkToEgo[attrs.sortKey]) < 0) {
+              domain.push(d.linkToEgo[attrs.sortKey]);
+          }
+        })
+        sortRadius.domain(domain);
+    }
+  }
   function netInit(_selection) {
     _selection.each(function(_data) {
       var selection = d3.select(this);
       var egoAndNeighbors = getEgoAndNeighbors();
-      if (attrs.sortType == 'number') {
-          var sortExtent = d3.extent(egoAndNeighbors.neighbors, function(d) {return trimValForSort(d);})
-          sortRadius.domain(d3.range(sortExtent[0], sortExtent[1]+attrs.sortUnit, attrs.sortUnit))
-      } else {
-          var domain = [];
-          egoAndNeighbors.neighbors.forEach(function(d){
-            if (domain.indexOf(d.linkToEgo[attrs.sortKey]) < 0) {
-                domain.push(d.linkToEgo[attrs.sortKey]);
-            }
-          })
-          sortRadius.domain(domain);
-      }
+      setSortRadius(egoAndNeighbors);
       selection.call(drawNeighbors, egoAndNeighbors.neighbors)
         .call(drawEgo, egoAndNeighbors.ego);
     })
@@ -105,7 +107,9 @@ d3.egoNetworks = function module() {
             if (!egoNeighbors) {
               if (l.is_mutual) l.type = 'mutual'
               else l.type = 'follow'
-              neighbors.push({neighbor:neighbor, linkToEgo:l, neighborIndex:l.target})
+              var n = {neighbor:neighbor, linkToEgo:l}
+              n[attrs.nodeKey] = l.target;
+              neighbors.push(n);
             } else {
               var egoNeighbor = findNode(egoNeighbors, neighbor[attrs.nodeKey])
               if (egoNeighbor) neighbors.push({linkToEgo:l, neighbor:egoNeighbor})
@@ -117,7 +121,9 @@ d3.egoNetworks = function module() {
             if((attrs.isDirected && !l.is_mutual)) {
                 if(!egoNeighbors) {
                   l.type = 'followed_by'
-                  neighbors.push({neighbor:neighbor, linkToEgo:l, neighborIndex:l.source})
+                  var n = {neighbor:neighbor, linkToEgo:l}
+                  n[attrs.nodeKey] = l.source;
+                  neighbors.push(n)
                 } else {
                   var egoNeighbor = findNode(egoNeighbors, neighbor[attrs.nodeKey])
                   if (egoNeighbor) neighbors.push({linkToEgo:l, neighbor:egoNeighbor})
@@ -159,36 +165,37 @@ d3.egoNetworks = function module() {
 
   function drawEgo(selection, egoData) {
     var ego = selection.selectAll('.ego')
-      .data([egoData], function(d){return attrs.egoIndex})
+      .data([egoData], function(d){return d[attrs.nodeKey]})
 
-    ego.enter().append('g')
-      .attr('class', 'ego node new')
-      .append('circle')
+    var egoEnter = ego.enter().append('g')
+      .attr('class', 'ego node');
 
-    selection.selectAll('.ego.new')
-      .append('text')
-    selection.selectAll('.ego.new')
-      .classed({'new':false})
+    egoEnter.append('circle');
+    egoEnter.append('text');
 
-    ego.attr('transform', d3.svg.transform()
-      .translate([innerWidth/2, innerHeight/2]
-      ))
-      .selectAll('circle')
-      .attr('r', function(d){return size(d.egoDegree)})
-    ego.selectAll('text')
+    ego.transition().duration(durationUnit)
+      .attr('transform', d3.svg.transform()
+        .translate([innerWidth/2, innerHeight/2])
+      )
+    ego.select('circle')
+      .transition().duration(durationUnit)
+      .attr('r', function(d){console.log(d);return size(d.egoDegree)})
+
+    ego.select('text')
       .attr('text-anchor', 'middle')
       .attr('dy', '.45em')
+      .attr('transform', null)
       .text(function(d){return d[attrs.nameKey]})
+    /*
     ego.exit()
       .classed({'ego':false, 'neighbor':true})
-
+    */
     return selection;
   }
 
   function drawNeighbors(selection, neighborsData) {
     var thetaUnit = Math.PI*2/ neighborsData.length,
       thetaOffset = thetaUnit *.3
-
 
     var background = selection.select('.background')
       .selectAll('.background-circle')
@@ -238,8 +245,8 @@ d3.egoNetworks = function module() {
         if ('linkToNeighbors' in d) {
           d.linkToNeighbors.forEach(function(l) {
             neighbors.filter(function(n) {
-              return ((l.source == n.neighborIndex || l.target == n.neighborIndex)
-                && (n.neighborIndex !== d.neighborIndex))
+              return ((l.source == n[attrs.nodeKey] || l.target == n[attrs.nodeKey])
+                && (n[attrs.nodeKey] !== d[attrs.nodeKey]))
             }).each(callback)
           })
         }
@@ -247,29 +254,32 @@ d3.egoNetworks = function module() {
     }
 
 
-    var neighbors = selection.selectAll('.neighbor')
-      .data(neighborsData, function(d){return d.neighborIndex})
+    var neighbors = selection.selectAll('.neighbor.main')
+      .data(neighborsData, function(d){return d[attrs.nodeKey]})
 
     var neighborsEnter = neighbors.enter().append('g')
-      .attr('class', 'neighbor node')
+      .attr('class', 'neighbor node main')
       .each(function(d) {d.x = innerWidth*.5; d.y = innerHeight*.5})
       .attr('transform', d3.svg.transform().translate(function(d,i) {return [d.x, d.y] }))
-      .call(setNeighborInteraction)
+
 
     neighborsEnter.append('circle');
     neighborsEnter.append('text')
 
-    neighbors.each(function(d,i) {
+    neighbors.call(setNeighborInteraction)
+    .each(function(d,i) {
       d.theta = thetaUnit*i;
     }).call(setNeighborPos)
     .transition().delay(durationUnit*.5).duration(durationUnit)
     .attr('transform', d3.svg.transform().translate(function(d,i) {return [d.x, d.y] }))
 
     neighbors.selectAll('circle')
+      .data(function(d){return [d]})
       .attr('r', function(d){return attrs.valueKey && d.linkToEgo[attrs.valueKey] ? size(d.linkToEgo[attrs.valueKey]) : 4})
       .style('fill', function(d){return color(d.neighbor[attrs.colorKey]);})
 
     neighbors.selectAll('text')
+      .data(function(d){return [d]})
       .attr('text-anchor', function(d) {
         return (d.theta + Math.HALF_PI)%Math.TWO_PI > Math.PI ? 'end' : 'start';
       }).attr('transform', d3.svg.transform().rotate(function(d){
@@ -316,7 +326,7 @@ d3.egoNetworks = function module() {
         }
       });
     })
-
+    neighbors.exit().remove();
     /*
     var link = selection.selectAll('.link')
       .data(linkData, function(d){return d[0].node.neighbor[attrs.nodeKey] + '-' +d[d.length-1].node.neighbor[attrs.nodeKey]})
@@ -334,17 +344,12 @@ d3.egoNetworks = function module() {
   function drawRestNeighbors(_selection, neighborsData) { // _selection == centerNode;
     var thetaUnit = Math.PI*2/ neighborsData.length,
       thetaOffset = thetaUnit *.3
-    var sub = svg.selectAll('.sub')
-      .data([neighborsData])
+
 
     var cx = _selection.datum().x, cy= _selection.datum().y;
-    sub.enter().append('g')
-      .attr('class', 'sub')
 
-    //sub.attr('transform', d3.svg.transform().translate([cx,cy]));
-
-    var neighbors = sub.selectAll('.neighbor.node')
-      .data(function(d){return d}, function(d){return d.neighborIndex})
+    var neighbors = svg.selectAll('.neighbor.sub')
+      .data(neighborsData, function(d){return d[attrs.nodeKey]})
 
     var neighborsEnter = neighbors.enter().append('g')
       .attr('class', 'neighbor node sub')
@@ -420,32 +425,93 @@ d3.egoNetworks = function module() {
 
     _selection.on('mouseenter.neighbor', function(d){
       d3.select(this).classed({'hover': true})
-      var curIndex = d.neighborIndex;
+      var curIndex = d[attrs.nodeKey];
       var linkToNeighbors = d.linkToNeighbors;
       var neighbors = d3.select(d3.select(this).node().parentNode)
-        .selectAll('.neighbor')
+        .selectAll('.neighbor.main')
         .filter(function(n) {
-          var index = n.neighborIndex;
+          var index = n[attrs.nodeKey];
           if (index !== curIndex) return _isNeighbor(index, linkToNeighbors);
           return false;
         }).classed({'hover':true})
 
       var egoAndNeighbors = getEgoAndNeighbors(curIndex);
       var restNeighbors = egoAndNeighbors.neighbors.filter(function(n) {
-        return !(_isNeighbor(n.neighborIndex, linkToNeighbors))
+        return !(_isNeighbor(n[attrs.nodeKey], linkToNeighbors))
       })
       //FIXME : 존재하는 친구 제외
       d3.select(this).call(drawRestNeighbors, restNeighbors);
     }).on('mouseleave', function() {
-      d3.select(d3.select(this).node().parentNode)
-        .selectAll('.neighbor.hover').classed({'hover': false})
+        svg.selectAll('.neighbor.main.hover').classed({'hover': false})
+        svg.selectAll('.neighbor.sub')
+          .transition().duration(durationUnit)
+          .style('opacity', 0)
+          .each('end', function() {
+            d3.select(this).remove();
+          })
     }).on('click.neighbor', function(d) {
+      d3.select(this).call(transform);
       d3.event.stopPropagation();
     })
   }
 
-  function packageHierarchy(nodes) {
+  function transform(_selection) {
+    var cur = _selection.datum();
+    var egoAndNeighbors = getEgoAndNeighbors(cur[attrs.nodeKey]);
+    setSortRadius(egoAndNeighbors);
+    attrs.egoIndex = cur[attrs.nodeKey];
+    svg.selectAll('.ego')
+      .classed({'ego':false, 'neighbor':true, 'main':true})
+      .each(function(d){
+        var n = egoAndNeighbors.neighbors.filter(function(n){
+          return d[attrs.nodeKey] === n[attrs.nodeKey];
+        })[0]
 
+        d= {};
+
+        for (var k in n) {
+          d[k] = n[k];
+        }
+      })
+
+    var ego = _selection
+      .classed({'ego': true, 'neighbor':false, 'main':false})
+      .each(function(d){
+        /*
+        for (var k in d) {
+          if(d.hasOwnProperty(k)) delete d[k]
+        }
+        */
+        d={};
+        for (var k in egoAndNeighbors.ego) {
+          d[k] = egoAndNeighbors.ego[k];
+        }
+      })
+
+    svg.selectAll('.neighbor.sub')
+      .classed({'sub':false, 'main':true});
+
+    svg.call(drawEgo, egoAndNeighbors.ego)
+      .call(drawNeighbors, egoAndNeighbors.neighbors);
+    /*
+    ego.attr('transform', d3.svg.transform()
+      .translate([innerWidth/2, innerHeight/2]))
+      .selectAll('circle')
+      .attr('r', function(d){console.log(d);return size(d.egoDegree)})
+
+    ego.selectAll('text')
+      .attr('text-anchor', 'middle')
+      .attr('dy', '.45em')
+      .text(function(d){return d[attrs.nameKey]})
+    */
+    /* TODO:
+    1. egoAndNeighbor 데이터 구하기
+    2. selection-> ego로 변환
+    3. .main 필터링
+    4. .sub 메인 변환
+    5. 자리 잡기
+    */
+    svg.selectAll('.neighbor.sub')
   }
 
   function accessor(_attr) {
