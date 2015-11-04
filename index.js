@@ -1,7 +1,7 @@
 d3.egoNetworks = function module() {
   var attrs = {
-    width: 600,
-    height:600,
+    width: 640,
+    height:640,
     egoIndex:0,
     nodeKey:'user_id',
     degreeMin:1,
@@ -16,7 +16,7 @@ d3.egoNetworks = function module() {
     hierKeys : ['team', 'company'],
     colorKey : ['company']
   }
-  var margin = {top:40, right:40, bottom:40, left:40}
+  var margin = {top:60, right:60, bottom:60, left:60}
   var debug = false, sorted = false, durationUnit = 400;
   var size = d3.scale.linear(), color = d3.scale.category20();
   var innerWidth, innerHeight, netRadius, minRadius, maxRadius;
@@ -168,7 +168,10 @@ d3.egoNetworks = function module() {
       .data([egoData], function(d){return d[attrs.nodeKey]})
 
     var egoEnter = ego.enter().append('g')
-      .attr('class', 'ego node');
+      .attr('class', 'ego node')
+      .attr('transform', d3.svg.transform()
+        .translate([innerWidth/2, innerHeight/2])
+      );
 
     egoEnter.append('circle');
     egoEnter.append('text');
@@ -177,9 +180,12 @@ d3.egoNetworks = function module() {
       .attr('transform', d3.svg.transform()
         .translate([innerWidth/2, innerHeight/2])
       )
+
     ego.select('circle')
+      .style('fill', function(d){return color(d[attrs.colorKey]);})
       .transition().duration(durationUnit)
-      .attr('r', function(d){console.log(d);return size(d.egoDegree)})
+      .attr('r', function(d){return size(d.egoDegree)})
+
 
     ego.select('text')
       .attr('text-anchor', 'middle')
@@ -270,7 +276,10 @@ d3.egoNetworks = function module() {
     .each(function(d,i) {
       d.theta = thetaUnit*i;
     }).call(setNeighborPos)
-    .transition().delay(durationUnit*.5).duration(durationUnit)
+
+    neighbors.transition().delay(durationUnit*.5)
+    .duration(durationUnit)
+    .style('opacity', 1)
     .attr('transform', d3.svg.transform().translate(function(d,i) {return [d.x, d.y] }))
 
     neighbors.selectAll('circle')
@@ -278,18 +287,21 @@ d3.egoNetworks = function module() {
       .attr('r', function(d){return attrs.valueKey && d.linkToEgo[attrs.valueKey] ? size(d.linkToEgo[attrs.valueKey]) : 4})
       .style('fill', function(d){return color(d.neighbor[attrs.colorKey]);})
 
-    neighbors.selectAll('text')
+    var text = neighbors.selectAll('text')
       .data(function(d){return [d]})
       .attr('text-anchor', function(d) {
         return (d.theta + Math.HALF_PI)%Math.TWO_PI > Math.PI ? 'end' : 'start';
-      }).attr('transform', d3.svg.transform().rotate(function(d){
+      }).text(function(d) {return d.neighbor[attrs.nameKey]})
+
+    text.transition().duration(durationUnit)
+      .attr('transform', d3.svg.transform().rotate(function(d){
         return (d.theta + Math.HALF_PI)%Math.TWO_PI > Math.PI ?   Math.degrees(d.theta) + 180 : Math.degrees(d.theta);
         }).translate(function(d) {
           var dx = size(attrs.valueKey ? d.linkToEgo : 1) + 2;
           return [(d.theta + Math.HALF_PI)%Math.TWO_PI > Math.PI ? -dx : dx, 0]
         }))
       .attr('dy', '.35em')
-      .text(function(d) {return d.neighbor[attrs.nameKey]})
+
 
     var linkRadius = d3.scale.linear()
       .domain([0, Math.HALF_PI])
