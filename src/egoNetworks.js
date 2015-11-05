@@ -14,7 +14,8 @@ d3.egoNetworks = function module() {
     sortUnit : 1,
     isDirected : false,
     hierKeys : ['team', 'company'],
-    colorKey : ['company']
+    colorKey : ['company'],
+    pictureKey : ['profile_picture']
   }
   var margin = {top:60, right:60, bottom:60, left:60}
   var debug = false, sorted = false, durationUnit = 400;
@@ -57,7 +58,7 @@ d3.egoNetworks = function module() {
       var colorExtent = d3.set(linkAndNode.nodes.map(function(d){return d[attrs.colorKey]})).values();
       color.domain(colorExtent);
       size.domain([attrs.degreeMin,attrs.degreeMax])
-        .rangeRound([innerWidth*.005, innerWidth*.1]);
+        .rangeRound([innerWidth*.02, innerWidth*.225]);
       svg.datum(linkAndNode)
         .call(netInit)
         .on('click', function() {
@@ -173,29 +174,42 @@ d3.egoNetworks = function module() {
         .translate([innerWidth/2, innerHeight/2])
       );
 
-    egoEnter.append('circle');
-    egoEnter.append('text');
+    var circle = ego.selectAll('defs')
+      .data(function(d){return [d]})
+      .enter().append('defs')
+          .append('clipPath')
+        .attr('id', 'egoClip')
+        .append('circle')
+        .attr('r', 0)
+        //.style('stroke', function(d){return color(d[attrs.colorKey]);})
+    circle.transition().duration(durationUnit)
+      .attr('r', 50);
+    //egoEnter.append('circle');
+    ego.selectAll('image')
+      .data(function(d){return [d]})
+      .enter().append('image')
+      .attr('clip-path', 'url(#egoClip)')
+      .attr('xlink:href', function(d){return d[attrs.pictureKey]})
+      .attr('x', -50)
+      .attr('y', -50)
+      .attr('width', 100)
+      .attr('height', 100)
+
+    egoEnter.append('text')
+      .attr('class', 'node-text');
 
     ego.transition().duration(durationUnit)
       .attr('transform', d3.svg.transform()
         .translate([innerWidth/2, innerHeight/2])
       )
 
-    ego.select('circle')
-      .style('fill', function(d){return color(d[attrs.colorKey]);})
-      .transition().duration(durationUnit)
-      .attr('r', function(d){return size(d.egoDegree)})
-
-
-    ego.select('text')
+    ego.select('.node-text')
       .attr('text-anchor', 'middle')
-      .attr('dy', '.45em')
+      .attr('y', 50)
+      .attr('dy', '1.35em')
       .attr('transform', null)
       .text(function(d){return d[attrs.nameKey]})
-    /*
-    ego.exit()
-      .classed({'ego':false, 'neighbor':true})
-    */
+
     return selection;
   }
 
@@ -268,30 +282,34 @@ d3.egoNetworks = function module() {
       .each(function(d) {d.x = innerWidth*.5; d.y = innerHeight*.5})
       .attr('transform', d3.svg.transform().translate(function(d,i) {return [d.x, d.y] }))
 
-
-    neighborsEnter.append('circle');
-    neighborsEnter.append('text')
-
     neighbors.call(setNeighborInteraction)
-    .each(function(d,i) {
-      d.theta = thetaUnit*i;
-    }).call(setNeighborPos)
+      .each(function(d,i) {
+        d.theta = thetaUnit*i;
+      }).call(setNeighborPos)
 
     neighbors.transition().delay(durationUnit*.5)
-    .duration(durationUnit)
-    .style('opacity', 1)
-    .attr('transform', d3.svg.transform().translate(function(d,i) {return [d.x, d.y] }))
+      .duration(durationUnit)
+      .style('opacity', 1)
+      .attr('transform', d3.svg.transform().translate(function(d,i) {return [d.x, d.y] }))
 
-    neighbors.selectAll('circle')
-      .data(function(d){return [d]})
-      .attr('r', function(d){return attrs.valueKey && d.linkToEgo[attrs.valueKey] ? size(d.linkToEgo[attrs.valueKey]) : 4})
+
+    var circle = neighbors.selectAll('.neighbor-circle')
+        .data(function(d){return [d]})
+    circle.enter().append('circle')
+      .attr('class', 'neighbor-circle')
+    circle.attr('r', function(d){return attrs.valueKey && d.linkToEgo[attrs.valueKey] ? size(d.linkToEgo[attrs.valueKey]) : 4})
       .style('fill', function(d){return color(d.neighbor[attrs.colorKey]);})
 
-    var text = neighbors.selectAll('text')
+    var text = neighbors.selectAll('.node-text')
       .data(function(d){return [d]})
-      .attr('text-anchor', function(d) {
+
+    text.enter().append('text')
+      .attr('class', 'node-text')
+      .text(function(d) {return d.neighbor[attrs.nameKey]})
+
+    text.attr('text-anchor', function(d) {
         return (d.theta + Math.HALF_PI)%Math.TWO_PI > Math.PI ? 'end' : 'start';
-      }).text(function(d) {return d.neighbor[attrs.nameKey]})
+      })
 
     text.transition().duration(durationUnit)
       .attr('transform', d3.svg.transform().rotate(function(d){
@@ -300,6 +318,7 @@ d3.egoNetworks = function module() {
           var dx = size(attrs.valueKey ? d.linkToEgo : 1) + 2;
           return [(d.theta + Math.HALF_PI)%Math.TWO_PI > Math.PI ? -dx : dx, 0]
         }))
+      .attr('y', 0)
       .attr('dy', '.35em')
 
 
@@ -372,17 +391,19 @@ d3.egoNetworks = function module() {
     .attr('transform', d3.svg.transform().translate(function(d,i) {return [d.x, d.y] }))
     .style('opacity', 0)
 
-    neighborsEnter.append('circle');
-    neighborsEnter.append('text');
+    neighborsEnter.append('circle')
+      .attr('class', 'node-circle');
+    neighborsEnter.append('text')
+      .attr('class', 'node-text');
 
     neighbors.transition().delay(durationUnit*.5).duration(durationUnit)
       .style('opacity', 1)
 
-    neighbors.selectAll('circle')
+    neighbors.selectAll('.node-circle')
       .attr('r', function(d){return (attrs.valueKey && d.linkToEgo[attrs.valueKey] ? size(d.linkToEgo[attrs.valueKey]) : 4)*.75})
       .style('fill', function(d){return color(d.neighbor[attrs.colorKey]);})
 
-    neighbors.selectAll('text')
+    neighbors.selectAll('.node-text')
       .data(function(d){return [d]})
       .attr('text-anchor', function(d) {
         return (d.theta + Math.HALF_PI)%Math.TWO_PI > Math.PI ? 'end' : 'start';
@@ -472,33 +493,39 @@ d3.egoNetworks = function module() {
     var egoAndNeighbors = getEgoAndNeighbors(cur[attrs.nodeKey]);
     setSortRadius(egoAndNeighbors);
     attrs.egoIndex = cur[attrs.nodeKey];
-    svg.selectAll('.ego')
+
+    var oldEgo = svg.selectAll('.ego')
       .classed({'ego':false, 'neighbor':true, 'main':true})
       .each(function(d){
         var n = egoAndNeighbors.neighbors.filter(function(n){
           return d[attrs.nodeKey] === n[attrs.nodeKey];
         })[0]
-
         d= {};
-
         for (var k in n) {
           d[k] = n[k];
         }
       })
 
+    oldEgo.select('defs clipPath')
+      .attr('id', null)
+    oldEgo.select('defs clipPath circle')
+      .transition().duration(durationUnit)
+      .attr('r', 0)
+      .each('end', function() {
+        oldEgo.select('defs').remove();
+        oldEgo.select('image').remove();
+      })
+
     var ego = _selection
-      .classed({'ego': true, 'neighbor':false, 'main':false})
+      .classed({'ego': true, 'neighbor':false, 'main':false, 'hover':false})
       .each(function(d){
-        /*
-        for (var k in d) {
-          if(d.hasOwnProperty(k)) delete d[k]
-        }
-        */
         d={};
         for (var k in egoAndNeighbors.ego) {
           d[k] = egoAndNeighbors.ego[k];
         }
-      })
+      }).on('mouseenter.neighbor', null)
+      .select('circle')
+      .remove();
 
     svg.selectAll('.neighbor.sub')
       .classed({'sub':false, 'main':true});
