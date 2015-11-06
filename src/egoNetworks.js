@@ -454,6 +454,7 @@ d3.egoNetworks = function module() {
           var dx = size(attrs.valueKey ? d.linkToEgo : 1) + 2;
           return [(d.theta + Math.HALF_PI)%Math.TWO_PI > Math.PI ? -dx : dx, 0]
         }))
+      .attr('dx', 0)
       .attr('dy', '.35em')
       .text(function(d) {return d.neighbor[attrs.nameKey]})
 
@@ -505,6 +506,11 @@ d3.egoNetworks = function module() {
         .attr('r', function(d){return profile_size*.25})
         .style('fill', 'none')
         .style('stroke', function(d){return color(d.neighbor[attrs.colorKey])})
+      thisNode.select('.node-text')
+        .transition().duration(durationUnit)
+        .attr('dx', function(){
+          return d3.select(this).attr('text-anchor')==='start' ? '1.35em' : '-1.35em';
+         })
 
       var curIndex = d[attrs.nodeKey];
       var linkToNeighbors = d.linkToNeighbors;
@@ -523,20 +529,25 @@ d3.egoNetworks = function module() {
 
       thisNode.call(drawRestNeighbors, restNeighbors);
     }).on('mouseleave.neighbor', function() {
-        d3.select(this).select('.node-circle')
+      var thisNode = d3.select(this);
+      thisNode.select('.node-circle')
           .transition().duration(durationUnit)
           .attr('r', function(d){return attrs.valueKey && d.linkToEgo[attrs.valueKey] ? size(d.linkToEgo[attrs.valueKey]) : 4})
           .style('fill', function(d){return color(d.neighbor[attrs.colorKey]);})
-
-        svg.selectAll('.neighbor.main')
-          .classed({'hover': false, 'linked':false, 'unlinked':false})
-        svg.selectAll('.neighbor.sub')
-          .transition().duration(durationUnit)
-          .style('opacity', 0)
-          .each('end', function() {
-            d3.select(this).remove();
-          })
+      thisNode.select('.node-text')
+        .transition().duration(durationUnit)
+        .attr('dx', 0)
+      svg.selectAll('.neighbor.main')
+        .classed({'hover': false, 'linked':false, 'unlinked':false})
+      svg.selectAll('.neighbor.sub')
+        .transition().duration(durationUnit)
+        .style('opacity', 0)
+        .each('end', function() {
+          d3.select(this).remove();
+        })
     }).on('click.neighbor', function(d) {
+      d3.select(this).select('.node-text')
+        .attr('dx', 0)
       d3.select(this).call(transform);
       svg.selectAll('.neighbor.main')
         .classed({'hover': false, 'linked':false, 'unlinked':false})
