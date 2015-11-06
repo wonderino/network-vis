@@ -18,7 +18,7 @@ d3.egoNetworks = function module() {
     pictureKey : ['profile_picture']
   }
   var margin = {top:60, right:60, bottom:60, left:60}
-  var debug = false, sorted = false, durationUnit = 400;
+  var debug = false, sorted = false, durationUnit = 400, profile_size = 100;
   var size = d3.scale.linear(), color = d3.scale.category20();
   var innerWidth, innerHeight, netRadius, minRadius, maxRadius;
   var sortRadius = d3.scale.ordinal();
@@ -174,26 +174,43 @@ d3.egoNetworks = function module() {
         .translate([innerWidth/2, innerHeight/2])
       );
 
-    var circle = ego.selectAll('defs')
+    var mask = ego.selectAll('.mask')
       .data(function(d){return [d]})
-      .enter().append('defs')
+
+    mask.enter().append('defs')
+        .attr('class','.mask')
           .append('clipPath')
-        .attr('id', 'egoClip')
+        .attr('id', function(d){return 'egoClip-'+d[attrs.nodeKey]})
         .append('circle')
         .attr('r', 0)
         //.style('stroke', function(d){return color(d[attrs.colorKey]);})
-    circle.transition().duration(durationUnit)
-      .attr('r', 50);
-    //egoEnter.append('circle');
-    ego.selectAll('image')
+    mask.select('clipPath > circle')
+      .transition().duration(durationUnit)
+      .attr('r', profile_size*.5);
+
+    var image = ego.selectAll('.profile-picture')
       .data(function(d){return [d]})
-      .enter().append('image')
-      .attr('clip-path', 'url(#egoClip)')
+
+    image.enter().append('image')
+      .attr('class', 'profile-picture')
+      .attr('clip-path', function(d){return 'url(#egoClip-'+d[attrs.nodeKey]+')'})
       .attr('xlink:href', function(d){return d[attrs.pictureKey]})
-      .attr('x', -50)
-      .attr('y', -50)
-      .attr('width', 100)
-      .attr('height', 100)
+
+    var circle = ego.selectAll('.node-circle')
+        .data(function(d){return [d]})
+    circle.enter().append('circle')
+      .attr('class', 'node-circle')
+
+    circle.transition().duration(durationUnit)
+      .attr('r', function(d){return profile_size*.5})
+      .style('fill', 'none')
+      .style('stroke', function(d){return color(d[attrs.colorKey]);})
+
+    image.attr('x', -profile_size*.5)
+      .attr('y', -profile_size*.5)
+      .attr('width', profile_size)
+      .attr('height', profile_size)
+
 
     egoEnter.append('text')
       .attr('class', 'node-text');
@@ -273,7 +290,6 @@ d3.egoNetworks = function module() {
       })
     }
 
-
     var neighbors = selection.selectAll('.neighbor.main')
       .data(neighborsData, function(d){return d[attrs.nodeKey]})
 
@@ -292,11 +308,38 @@ d3.egoNetworks = function module() {
       .style('opacity', 1)
       .attr('transform', d3.svg.transform().translate(function(d,i) {return [d.x, d.y] }))
 
+    var mask = neighbors.selectAll('.mask')
+      .data(function(d){return [d]})
 
-    var circle = neighbors.selectAll('.neighbor-circle')
+    mask.enter().append('defs')
+        .attr('class','.mask')
+          .append('clipPath')
+        .attr('id', function(d){return 'egoClip-'+d.neighbor[attrs.nodeKey]})
+        .append('circle')
+        .attr('r', 0)
+        //.style('stroke', function(d){return color(d[attrs.colorKey]);})
+    mask.select('clipPath > circle')
+      .transition().duration(durationUnit)
+      .attr('r', 25);
+
+    var image = neighbors.selectAll('.profile-picture')
+      .data(function(d){return [d]})
+
+    image.enter().append('image')
+      .attr('class', 'profile-picture')
+      .attr('clip-path', function(d){return 'url(#egoClip-'+d.neighbor[attrs.nodeKey]+')'})
+      .attr('xlink:href', function(d){return d.neighbor[attrs.pictureKey]})
+
+    image.attr('x', -25)
+      .attr('y', -25)
+      .attr('width', 50)
+      .attr('height', 50)
+
+    var circle = neighbors.selectAll('.node-circle')
         .data(function(d){return [d]})
     circle.enter().append('circle')
-      .attr('class', 'neighbor-circle')
+      .attr('class', 'node-circle')
+
     circle.attr('r', function(d){return attrs.valueKey && d.linkToEgo[attrs.valueKey] ? size(d.linkToEgo[attrs.valueKey]) : 4})
       .style('fill', function(d){return color(d.neighbor[attrs.colorKey]);})
 
@@ -326,8 +369,6 @@ d3.egoNetworks = function module() {
       .domain([0, Math.HALF_PI])
 
     var linkLine = d3.svg.line()
-      //.interpolate('cardinal')
-      //.tension(1)
       .x(function(d) { return d.x; })
       .y(function(d) { return d.y; });
 
@@ -376,8 +417,8 @@ d3.egoNetworks = function module() {
     var thetaUnit = Math.PI*2/ neighborsData.length,
       thetaOffset = thetaUnit *.3
 
-
-    var cx = _selection.datum().x, cy= _selection.datum().y;
+    var cx = _selection.datum().x,
+      cy= _selection.datum().y;
 
     var neighbors = svg.selectAll('.neighbor.sub')
       .data(neighborsData, function(d){return d[attrs.nodeKey]})
@@ -457,25 +498,38 @@ d3.egoNetworks = function module() {
     }
 
     _selection.on('mouseenter.neighbor', function(d){
-      d3.select(this).classed({'hover': true})
+      var thisNode= d3.select(this);
+      thisNode.classed({'hover': true})
+      thisNode.select('.node-circle')
+        .transition().duration(durationUnit)
+        .attr('r', function(d){return profile_size*.25})
+        .style('fill', 'none')
+        .style('stroke', function(d){return color(d.neighbor[attrs.colorKey])})
+
       var curIndex = d[attrs.nodeKey];
       var linkToNeighbors = d.linkToNeighbors;
-      var neighbors = d3.select(d3.select(this).node().parentNode)
+      var neighbors = d3.select(thisNode.node().parentNode)
         .selectAll('.neighbor.main')
         .filter(function(n) {
           var index = n[attrs.nodeKey];
           if (index !== curIndex) return _isNeighbor(index, linkToNeighbors);
           return false;
-        }).classed({'hover':true})
+        }).classed({'linked':true})
 
       var egoAndNeighbors = getEgoAndNeighbors(curIndex);
       var restNeighbors = egoAndNeighbors.neighbors.filter(function(n) {
         return !(_isNeighbor(n[attrs.nodeKey], linkToNeighbors))
       })
-      //FIXME : 존재하는 친구 제외
-      d3.select(this).call(drawRestNeighbors, restNeighbors);
-    }).on('mouseleave', function() {
-        svg.selectAll('.neighbor.main.hover').classed({'hover': false})
+
+      thisNode.call(drawRestNeighbors, restNeighbors);
+    }).on('mouseleave.neighbor', function() {
+        d3.select(this).select('.node-circle')
+          .transition().duration(durationUnit)
+          .attr('r', function(d){return attrs.valueKey && d.linkToEgo[attrs.valueKey] ? size(d.linkToEgo[attrs.valueKey]) : 4})
+          .style('fill', function(d){return color(d.neighbor[attrs.colorKey]);})
+
+        svg.selectAll('.neighbor.main')
+          .classed({'hover': false, 'linked':false, 'unlinked':false})
         svg.selectAll('.neighbor.sub')
           .transition().duration(durationUnit)
           .style('opacity', 0)
@@ -484,6 +538,8 @@ d3.egoNetworks = function module() {
           })
     }).on('click.neighbor', function(d) {
       d3.select(this).call(transform);
+      svg.selectAll('.neighbor.main')
+        .classed({'hover': false, 'linked':false, 'unlinked':false})
       d3.event.stopPropagation();
     })
   }
@@ -506,15 +562,9 @@ d3.egoNetworks = function module() {
         }
       })
 
-    oldEgo.select('defs clipPath')
-      .attr('id', null)
-    oldEgo.select('defs clipPath circle')
+    oldEgo.select('defs > clipPath > circle')
       .transition().duration(durationUnit)
       .attr('r', 0)
-      .each('end', function() {
-        oldEgo.select('defs').remove();
-        oldEgo.select('image').remove();
-      })
 
     var ego = _selection
       .classed({'ego': true, 'neighbor':false, 'main':false, 'hover':false})
@@ -524,32 +574,16 @@ d3.egoNetworks = function module() {
           d[k] = egoAndNeighbors.ego[k];
         }
       }).on('mouseenter.neighbor', null)
-      .select('circle')
-      .remove();
+      .on('mouseclick.neighbor', null)
+      .on('mouseleave.neighbor', null)
+      .select('.node-circle')
 
     svg.selectAll('.neighbor.sub')
       .classed({'sub':false, 'main':true});
 
     svg.call(drawEgo, egoAndNeighbors.ego)
       .call(drawNeighbors, egoAndNeighbors.neighbors);
-    /*
-    ego.attr('transform', d3.svg.transform()
-      .translate([innerWidth/2, innerHeight/2]))
-      .selectAll('circle')
-      .attr('r', function(d){console.log(d);return size(d.egoDegree)})
 
-    ego.selectAll('text')
-      .attr('text-anchor', 'middle')
-      .attr('dy', '.45em')
-      .text(function(d){return d[attrs.nameKey]})
-    */
-    /* TODO:
-    1. egoAndNeighbor 데이터 구하기
-    2. selection-> ego로 변환
-    3. .main 필터링
-    4. .sub 메인 변환
-    5. 자리 잡기
-    */
     svg.selectAll('.neighbor.sub')
   }
 

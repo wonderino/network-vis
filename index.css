@@ -19,42 +19,63 @@
   fill-opacity : .05;
 }
 
+.ego-nets .node {
+  pointer-events: bounding-box;
+}
+
 .ego-nets .background text{
   fill : #8a8a8a;
   font-size : 10px;
 }
 
-
-.ego-nets .ego.node > circle{
-  stroke : #fdefea;
-  stroke-width : 8px;
-  /*fill : #E8591D;*/
+.ego-nets .ego.node .node-circle{
+  stroke-width : 5px;
 }
 
-.ego-nets .ego.node > text{
+.ego-nets .ego.node .node-text{
   stroke:none;
   fill : #111;
 }
 
-.ego-nets .neighbor.node > circle{
-  stroke : none;
-  fill : #1EA278;
-}
-.ego-nets .neighbor.node.hover > circle {
-  stroke : #aaa;
-  stroke-width : 2px;
+.ego-nets .ego.node .profile-picture {
+  display : inherit;
 }
 
-.ego-nets .neighbor.node > text{
+.ego-nets .neighbor.node .node-circle{
+  display : inherit;
+  stroke : none;
+}
+
+.ego-nets .neighbor.node.hover .node-circle {
+  fill : none;
+  stroke-width : 3px;
+}
+
+.ego-nets .neighbor.node .node-text{
   stroke : none;
   fill : #111;
   font-size : 10px;
 }
+.ego-nets .neighbor.node .profile-picture {
+  display : none;
+}
+.ego-nets .neighbor.node.hover .profile-picture {
+  display :inherit;
+}
+.ego-nets .neighbor.node.hover .node-text{
+  font-weight: 600;
+  font-size : 13px;
+}
+.ego-nets .neighbor.node.unlinked {
+  opacity : .25;
+}
 
-.ego-nets .neighbor.node.hover > text{
+.ego-nets .neighbor.node.linked .node-text{
   font-weight: 600;
   font-size : 11px;
 }
+
+
 
 .ego-nets path.link {
   stroke : #1EA278;
@@ -63,6 +84,6 @@
   shape-rendering : geometricPrecision;
 }
 
-.ego-nets .sub .neighbor.node circle{
+.ego-nets .sub .neighbor.node .node-circle{
   stroke : none;
 }
