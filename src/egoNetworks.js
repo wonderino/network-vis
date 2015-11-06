@@ -221,11 +221,15 @@ d3.egoNetworks = function module() {
       )
 
     ego.select('.node-text')
+      .text(function(d){return d[attrs.nameKey]})
+      .attr('transform', null)
       .attr('text-anchor', 'middle')
+      .transition().duration(durationUnit)
+      .attr('dx', 0)
       .attr('y', 50)
       .attr('dy', '1.35em')
-      .attr('transform', null)
-      .text(function(d){return d[attrs.nameKey]})
+
+
 
     return selection;
   }
@@ -503,10 +507,12 @@ d3.egoNetworks = function module() {
       var thisNode= d3.select(this);
       thisNode.classed({'hover': true})
       thisNode.select('.node-circle')
-        .transition().duration(durationUnit)
-        .attr('r', function(d){return profile_size*.25})
         .style('fill', 'none')
         .style('stroke', function(d){return color(d.neighbor[attrs.colorKey])})
+        .transition().duration(durationUnit)
+        .attr('r', function(d){return profile_size*.25})
+
+
       thisNode.select('.node-text')
         .transition().duration(durationUnit)
         .attr('dx', function(){
@@ -532,9 +538,10 @@ d3.egoNetworks = function module() {
     }).on('mouseleave.neighbor', function() {
       var thisNode = d3.select(this);
       thisNode.select('.node-circle')
+          .style('fill', function(d){return color(d.neighbor[attrs.colorKey]);})
           .transition().duration(durationUnit)
           .attr('r', function(d){return attrs.valueKey && d.linkToEgo[attrs.valueKey] ? size(d.linkToEgo[attrs.valueKey]) : 4})
-          .style('fill', function(d){return color(d.neighbor[attrs.colorKey]);})
+
       thisNode.select('.node-text')
         .transition().duration(durationUnit)
         .attr('dx', 0)
@@ -547,8 +554,6 @@ d3.egoNetworks = function module() {
           d3.select(this).remove();
         })
     }).on('click.neighbor', function(d) {
-      d3.select(this).select('.node-text')
-        .attr('dx', 0)
       d3.select(this).call(transform);
       svg.selectAll('.neighbor.main')
         .classed({'hover': false, 'linked':false, 'unlinked':false})
