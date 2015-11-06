@@ -361,6 +361,7 @@ d3.egoNetworks = function module() {
           var dx = size(attrs.valueKey ? d.linkToEgo : 1) + 2;
           return [(d.theta + Math.HALF_PI)%Math.TWO_PI > Math.PI ? -dx : dx, 0]
         }))
+      .attr('dx', 0)
       .attr('y', 0)
       .attr('dy', '.35em')
 
