@@ -1,7 +1,7 @@
 d3.egoNetworks = function module() {
   var attrs = {
-    width: 640,
-    height:640,
+    width: 680,
+    height:680,
     egoIndex:0,
     nodeKey:'user_id',
     degreeMin:1,
@@ -17,7 +17,7 @@ d3.egoNetworks = function module() {
     colorKey : ['company'],
     pictureKey : ['profile_picture']
   }
-  var margin = {top:60, right:60, bottom:60, left:60}
+  var margin = {top:120, right:120, bottom:120, left:120}
   var debug = false, sorted = false, durationUnit = 400, profile_size = 100;
   var size = d3.scale.linear(), color = d3.scale.category20();
   var innerWidth, innerHeight, netRadius, minRadius, maxRadius;
@@ -419,23 +419,22 @@ d3.egoNetworks = function module() {
   }
 
   function drawRestNeighbors(_selection, neighborsData) { // _selection == centerNode;
-    var thetaUnit = Math.PI*2/ neighborsData.length,
-      thetaOffset = thetaUnit *.3
-
-    var cx = _selection.datum().x,
-      cy= _selection.datum().y;
+    var thetaUnit = Math.radians(4)
+      , midNum = (neighborsData.length -1) *.5
+      , midTheta = _selection.datum().theta;
 
     var neighbors = svg.selectAll('.neighbor.sub')
       .data(neighborsData, function(d){return d[attrs.nodeKey]})
 
     var neighborsEnter = neighbors.enter().append('g')
       .attr('class', 'neighbor node sub')
-
+    var parent = _selection.datum()
     neighbors.each(function(d,i) {
-      d.theta = thetaUnit*i;
+      var dist = i - midNum;
+      d.theta = midTheta + thetaUnit*dist;
     }).call(setNeighborPos, true)
-    .attr('transform', d3.svg.transform().translate(function(d,i) {return [d.x, d.y] }))
     .style('opacity', 0)
+    .attr('transform', d3.svg.transform().translate([parent.x,parent.y]))
 
     neighborsEnter.append('circle')
       .attr('class', 'node-circle');
@@ -444,6 +443,7 @@ d3.egoNetworks = function module() {
 
     neighbors.transition().delay(durationUnit*.5).duration(durationUnit)
       .style('opacity', 1)
+      .attr('transform', d3.svg.transform().translate(function(d,i) {return [d.x, d.y] }))
 
     neighbors.selectAll('.node-circle')
       .attr('r', function(d){return (attrs.valueKey && d.linkToEgo[attrs.valueKey] ? size(d.linkToEgo[attrs.valueKey]) : 4)*.75})
@@ -462,6 +462,7 @@ d3.egoNetworks = function module() {
       .attr('dx', 0)
       .attr('dy', '.35em')
       .text(function(d) {return d.neighbor[attrs.nameKey]})
+
 
     neighbors.exit().remove();
     return _selection;
@@ -484,7 +485,7 @@ d3.egoNetworks = function module() {
         var sortVal = d.linkToEgo[attrs.sortKey];
         var radius = (sorted ? sortRadius(attrs.sortType=== 'number'?  trimValForSort(sortVal): sortVal) : netRadius);
         if (isRest) {
-          radius = (sorted ? sortRadius.rangeExtent()[1]: netRadius) * 1.25;
+          radius = (sorted ? sortRadius.rangeExtent()[1]: netRadius) * 1.45;
         }
         d.x = cx+Math.cos(d.theta)*radius;
         d.y = cy+Math.sin(d.theta)*radius;
@@ -530,10 +531,10 @@ d3.egoNetworks = function module() {
         }).classed({'linked':true})
 
       var egoAndNeighbors = getEgoAndNeighbors(curIndex);
-      var restNeighbors = egoAndNeighbors.neighbors.filter(function(n) {
-        return !(_isNeighbor(n[attrs.nodeKey], linkToNeighbors))
-      })
 
+      var restNeighbors = egoAndNeighbors.neighbors.filter(function(n) {
+        return !(_isNeighbor(n[attrs.nodeKey], linkToNeighbors)) && !(_isNeighbor(n[attrs.nodeKey], [d.linkToEgo]))
+      })
       thisNode.call(drawRestNeighbors, restNeighbors);
     }).on('mouseleave.neighbor', function() {
       var thisNode = d3.select(this);
@@ -541,13 +542,13 @@ d3.egoNetworks = function module() {
           .style('fill', function(d){return color(d.neighbor[attrs.colorKey]);})
           .transition().duration(durationUnit)
           .attr('r', function(d){return attrs.valueKey && d.linkToEgo[attrs.valueKey] ? size(d.linkToEgo[attrs.valueKey]) : 4})
-
       thisNode.select('.node-text')
         .transition().duration(durationUnit)
         .attr('dx', 0)
       svg.selectAll('.neighbor.main')
         .classed({'hover': false, 'linked':false, 'unlinked':false})
       svg.selectAll('.neighbor.sub')
+        .classed({'sub':false})
         .transition().duration(durationUnit)
         .style('opacity', 0)
         .each('end', function() {

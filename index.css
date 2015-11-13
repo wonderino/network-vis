@@ -64,7 +64,7 @@
 }
 .ego-nets .neighbor.node.hover .node-text{
   font-weight: 600;
-  font-size : 13px;
+  font-size : 14px;
 }
 .ego-nets .neighbor.node.unlinked {
   opacity : .25;
@@ -72,10 +72,12 @@
 
 .ego-nets .neighbor.node.linked .node-text{
   font-weight: 600;
-  font-size : 11px;
+  font-size : 14px;
 }
 
-
+.ego-nets .sub {
+  pointer-events: none;
+}
 
 .ego-nets path.link {
   stroke : #1EA278;
