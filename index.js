@@ -1,7 +1,14 @@
+/* TODO :
+ [] 인원에 따른 원 크기 조절
+ [] 되돌아가기 기능 추가
+ [] 텍스트 표시 등
+ [] 색상 교체
+ [] 색상 선택 및 정렬 기준 옵션
+*/
 d3.egoNetworks = function module() {
   var attrs = {
-    width: 680,
-    height:680,
+    width: 720,
+    height:720,
     egoIndex:0,
     nodeKey:'user_id',
     degreeMin:1,
@@ -10,7 +17,7 @@ d3.egoNetworks = function module() {
     sortKey:'value', // sortKey가 ordinal 인지 linear 인지
     sortType:'number',
     nameKey:'ent_name',
-    sortAscending : false,
+    sortAscending : true,
     sortUnit : 1,
     isDirected : false,
     hierKeys : ['team', 'company'],
@@ -19,9 +26,11 @@ d3.egoNetworks = function module() {
   }
   var margin = {top:120, right:120, bottom:120, left:120}
   var debug = false, sorted = false, durationUnit = 400, profile_size = 100;
-  var size = d3.scale.linear(), color = d3.scale.category20();
-  var innerWidth, innerHeight, netRadius, minRadius, maxRadius;
-  var sortRadius = d3.scale.ordinal();
+  var nodeSize = d3.scale.linear().clamp(true)
+    , color = d3.scale.category20()
+    , radiusSize = d3.scale.linear().clamp(true)
+    , sortRadius = d3.scale.ordinal();
+  var innerWidth, innerHeight, netRadius;
   var nodeAndLink;
   var svg;
 
@@ -42,10 +51,12 @@ d3.egoNetworks = function module() {
           .style('height', attrs.height + 'px')
         innerWidth = attrs.width - margin.left - margin.right;
         innerHeight = attrs.height - margin.top - margin.bottom;
-        netRadius = innerWidth*.5*.75;
-        maxRadius = innerWidth*.5*.90;
-        minRadius = innerWidth*.5*.45;
-        sortRadius.rangeRoundPoints(attrs.sortAscending ? [minRadius, maxRadius] : [maxRadius, minRadius]);
+
+        var minRadius = innerWidth*.5*.45;
+        var maxRadius =  innerWidth*.5;
+        radiusSize.domain([attrs.degreeMin, attrs.degreeMax])
+          .rangeRound([minRadius, maxRadius])
+
         svg = d3.select(this).append('svg')
           .attr('width', attrs.width)
           .attr('height', attrs.height)
@@ -57,7 +68,7 @@ d3.egoNetworks = function module() {
       }
       var colorExtent = d3.set(linkAndNode.nodes.map(function(d){return d[attrs.colorKey]})).values();
       color.domain(colorExtent);
-      size.domain([attrs.degreeMin,attrs.degreeMax])
+      nodeSize.domain([attrs.degreeMin,attrs.degreeMax])
         .rangeRound([innerWidth*.02, innerWidth*.225]);
       svg.datum(linkAndNode)
         .call(netInit)
@@ -71,18 +82,30 @@ d3.egoNetworks = function module() {
     return Math.floor((d.linkToEgo[attrs.sortKey])/attrs.sortUnit) * attrs.sortUnit
   }
   function setSortRadius(egoAndNeighbors) {
+    netRadius = radiusSize(egoAndNeighbors.ego.egoDegree);
     if (attrs.sortType == 'number') {
         var sortExtent = d3.extent(egoAndNeighbors.neighbors, function(d) {return trimValForSort(d);})
         sortRadius.domain(d3.range(sortExtent[0], sortExtent[1]+attrs.sortUnit, attrs.sortUnit))
+          .rangeRoundPoints(attrs.sortAscending ? [minRadius, radius] : [radius, minRadius]);
     } else {
-        var domain = [];
+        var domain = d3.map({})
         egoAndNeighbors.neighbors.forEach(function(d){
-          if (domain.indexOf(d.linkToEgo[attrs.sortKey]) < 0) {
-              domain.push(d.linkToEgo[attrs.sortKey]);
+          var key = d.linkToEgo[attrs.sortKey];
+          if (!domain.has(key)) {
+              domain.set(key, 0)
           }
+          domain.set(key, domain.get(key)+1);
         })
-        sortRadius.domain(domain);
+        domain = domain.entries();
+        domain = domain.sort(function(a,b) {return a.value - b.value;})
+
+        sortRadius.domain(domain.map(function(d){return d.key}))
+          .rangeRoundPoints(
+            attrs.sortAscending ?
+            [profile_size*.25 + netRadius / domain.length, netRadius]
+          : [netRadius, profile_size*.25 + netRadius / domain.length] )
     }
+
   }
   function netInit(_selection) {
     _selection.each(function(_data) {
@@ -229,8 +252,6 @@ d3.egoNetworks = function module() {
       .attr('y', 50)
       .attr('dy', '1.35em')
 
-
-
     return selection;
   }
 
@@ -241,7 +262,9 @@ d3.egoNetworks = function module() {
     var background = selection.select('.background')
       .selectAll('.background-circle')
         .data(function(d){
-          return sorted ? d3.zip(sortRadius.range(), sortRadius.domain())
+          return sorted ? sortRadius.domain().map(function(d) {
+            return [sortRadius(d),d]
+          })
             : [[netRadius]]},
           function(d){return d[0]});
 
@@ -344,7 +367,7 @@ d3.egoNetworks = function module() {
     circle.enter().append('circle')
       .attr('class', 'node-circle')
 
-    circle.attr('r', function(d){return attrs.valueKey && d.linkToEgo[attrs.valueKey] ? size(d.linkToEgo[attrs.valueKey]) : 4})
+    circle.attr('r', function(d){return attrs.valueKey && d.linkToEgo[attrs.valueKey] ? nodeSize(d.linkToEgo[attrs.valueKey]) : 4})
       .style('fill', function(d){return color(d.neighbor[attrs.colorKey]);})
 
     var text = neighbors.selectAll('.node-text')
@@ -362,7 +385,7 @@ d3.egoNetworks = function module() {
       .attr('transform', d3.svg.transform().rotate(function(d){
         return (d.theta + Math.HALF_PI)%Math.TWO_PI > Math.PI ?   Math.degrees(d.theta) + 180 : Math.degrees(d.theta);
         }).translate(function(d) {
-          var dx = size(attrs.valueKey ? d.linkToEgo : 1) + 2;
+          var dx = nodeSize(attrs.valueKey ? d.linkToEgo : 1) + 2;
           return [(d.theta + Math.HALF_PI)%Math.TWO_PI > Math.PI ? -dx : dx, 0]
         }))
       .attr('dx', 0)
@@ -446,7 +469,7 @@ d3.egoNetworks = function module() {
       .attr('transform', d3.svg.transform().translate(function(d,i) {return [d.x, d.y] }))
 
     neighbors.selectAll('.node-circle')
-      .attr('r', function(d){return (attrs.valueKey && d.linkToEgo[attrs.valueKey] ? size(d.linkToEgo[attrs.valueKey]) : 4)*.75})
+      .attr('r', function(d){return (attrs.valueKey && d.linkToEgo[attrs.valueKey] ? nodeSize(d.linkToEgo[attrs.valueKey]) : 4)*.75})
       .style('fill', function(d){return color(d.neighbor[attrs.colorKey]);})
 
     neighbors.selectAll('.node-text')
@@ -456,7 +479,7 @@ d3.egoNetworks = function module() {
       }).attr('transform', d3.svg.transform().rotate(function(d){
         return (d.theta + Math.HALF_PI)%Math.TWO_PI > Math.PI ?   Math.degrees(d.theta) + 180 : Math.degrees(d.theta);
         }).translate(function(d) {
-          var dx = size(attrs.valueKey ? d.linkToEgo : 1) + 2;
+          var dx = nodeSize(attrs.valueKey ? d.linkToEgo : 1) + 2;
           return [(d.theta + Math.HALF_PI)%Math.TWO_PI > Math.PI ? -dx : dx, 0]
         }))
       .attr('dx', 0)
@@ -541,7 +564,7 @@ d3.egoNetworks = function module() {
       thisNode.select('.node-circle')
           .style('fill', function(d){return color(d.neighbor[attrs.colorKey]);})
           .transition().duration(durationUnit)
-          .attr('r', function(d){return attrs.valueKey && d.linkToEgo[attrs.valueKey] ? size(d.linkToEgo[attrs.valueKey]) : 4})
+          .attr('r', function(d){return attrs.valueKey && d.linkToEgo[attrs.valueKey] ? nodeSize(d.linkToEgo[attrs.valueKey]) : 4})
       thisNode.select('.node-text')
         .transition().duration(durationUnit)
         .attr('dx', 0)
