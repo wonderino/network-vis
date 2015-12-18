@@ -89,3 +89,12 @@
 .ego-nets .sub .neighbor.node .node-circle{
   stroke : none;
 }
+
+.ego-nets .sequence {
+  display : flex;
+  flex-wrap : wrap;
+}
+
+.ego-nets .sequence .node {
+  margin : 4px;
+}

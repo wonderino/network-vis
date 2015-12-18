@@ -1,5 +1,6 @@
 /* TODO :
- [] 인원에 따른 원 크기 조절
+ [x] 인원에 따른 원 크기 조절
+ [x] 정렬 기준 변환
  [] 되돌아가기 기능 추가
  [] 텍스트 표시 등
  [] 색상 교체
@@ -24,7 +25,7 @@ d3.egoNetworks = function module() {
     colorKey : ['company'],
     pictureKey : ['profile_picture']
   }
-  var margin = {top:120, right:120, bottom:120, left:120}
+  var margin = {top:80, right:120, bottom:80, left:120}
   var debug = false, sorted = false, durationUnit = 400, profile_size = 100;
   var nodeSize = d3.scale.linear().clamp(true)
     , color = d3.scale.category20()
@@ -32,7 +33,7 @@ d3.egoNetworks = function module() {
     , sortRadius = d3.scale.ordinal();
   var innerWidth, innerHeight, netRadius;
   var nodeAndLink;
-  var svg;
+  var svg, sequenceDiv,sequence = [];
 
   Math.radians = function(degrees) {
     return degrees * Math.PI / 180;
@@ -52,22 +53,25 @@ d3.egoNetworks = function module() {
         innerWidth = attrs.width - margin.left - margin.right;
         innerHeight = attrs.height - margin.top - margin.bottom;
 
-        var minRadius = innerWidth*.5*.45;
-        var maxRadius =  innerWidth*.5;
+        var minRadius = innerWidth*.5*.65;
+        var maxRadius =  innerWidth*.5*.9;
         radiusSize.domain([attrs.degreeMin, attrs.degreeMax])
           .rangeRound([minRadius, maxRadius])
+
+        sequenceDiv = d3.select(this)
+          .append('div')
+          .attr('class', 'sequence')
 
         svg = d3.select(this).append('svg')
           .attr('width', attrs.width)
           .attr('height', attrs.height)
             .append('g')
           .attr('transform', d3.svg.transform().translate([margin.left, margin.top]))
-
         svg.append('g')
           .attr('class', 'background');
+
       }
-      var colorExtent = d3.set(linkAndNode.nodes.map(function(d){return d[attrs.colorKey]})).values();
-      color.domain(colorExtent);
+      setColorKey(linkAndNode);
       nodeSize.domain([attrs.degreeMin,attrs.degreeMax])
         .rangeRound([innerWidth*.02, innerWidth*.225]);
       svg.datum(linkAndNode)
@@ -75,7 +79,13 @@ d3.egoNetworks = function module() {
         .on('click', function() {
           exports.sort();
         })
+      sequenceDiv.datum(sequence)
+        .call(updateSequence);
     })
+  }
+  function setColorKey (linkAndNode) {
+    var colorExtent = d3.set(linkAndNode.nodes.map(function(d){return d[attrs.colorKey]})).values();
+    color.domain(colorExtent);
   }
 
   function trimValForSort (d) {
@@ -107,10 +117,28 @@ d3.egoNetworks = function module() {
     }
 
   }
+
+  function updateSequence(_selection) {
+    var sequenceLimit = 12;
+    var sequence = _selection.selectAll('.node')
+      .data(function(d){return d})
+
+    sequence.enter().append('div')
+      .attr('class', 'node')
+      .text(function(d){return d[attrs.nameKey]})
+      .on('click', function(d) {
+        var egoAndNeighbors = getEgoAndNeighbors(d[attrs.nodeKey]);
+        setSortRadius(egoAndNeighbors);
+        svg.call(drawNeighbors, egoAndNeighbors.neighbors)
+          .call(drawEgo, egoAndNeighbors.ego);
+      })
+  }
+
   function netInit(_selection) {
     _selection.each(function(_data) {
       var selection = d3.select(this);
       var egoAndNeighbors = getEgoAndNeighbors();
+      sequence.push(egoAndNeighbors.ego);
       setSortRadius(egoAndNeighbors);
       selection.call(drawNeighbors, egoAndNeighbors.neighbors)
         .call(drawEgo, egoAndNeighbors.ego);
@@ -251,7 +279,7 @@ d3.egoNetworks = function module() {
       .attr('dx', 0)
       .attr('y', 50)
       .attr('dy', '1.35em')
-
+    ego.exit().remove();
     return selection;
   }
 
@@ -493,25 +521,13 @@ d3.egoNetworks = function module() {
   function setNeighborPos(selection,  isRest) {
     var cx = innerWidth*.5, cy =  innerHeight*.5;
     selection.each(function(d) {
-      /*
-      d3.select(this).call(neighborFunc, neighbors, function(n) {
-            if(n.theta - d.theta <= Math.PI) {
-              //FIXME : 링크 value를 곱해주기
-              d.theta += thetaOffset;
-              n.theta -= thetaOffset;
-            } else {
-              d.theta -= thetaOffset;
-              n.theta += thetaOffset;
-            }
-        });
-        */
-        var sortVal = d.linkToEgo[attrs.sortKey];
-        var radius = (sorted ? sortRadius(attrs.sortType=== 'number'?  trimValForSort(sortVal): sortVal) : netRadius);
-        if (isRest) {
-          radius = (sorted ? sortRadius.rangeExtent()[1]: netRadius) * 1.45;
-        }
-        d.x = cx+Math.cos(d.theta)*radius;
-        d.y = cy+Math.sin(d.theta)*radius;
+      var sortVal = d.linkToEgo[attrs.sortKey];
+      var radius = (sorted ? sortRadius(attrs.sortType=== 'number'?  trimValForSort(sortVal): sortVal) : netRadius);
+      if (isRest) {
+        radius = (sorted ? sortRadius.rangeExtent()[1]: netRadius) * 1.525;
+      }
+      d.x = cx+Math.cos(d.theta)*radius;
+      d.y = cy+Math.sin(d.theta)*radius;
     })
     return selection;
   }
@@ -579,13 +595,15 @@ d3.egoNetworks = function module() {
         })
     }).on('click.neighbor', function(d) {
       d3.select(this).call(transform);
+      sequence.push(d3.select(this).datum());// sequence 삽입
+      sequenceDiv.call(updateSequence);
       svg.selectAll('.neighbor.main')
         .classed({'hover': false, 'linked':false, 'unlinked':false})
       d3.event.stopPropagation();
     })
   }
 
-  function transform(_selection) {
+  function transform(_selection) { // 선택된 selection 을 중심으로 이동;
     var cur = _selection.datum();
     var egoAndNeighbors = getEgoAndNeighbors(cur[attrs.nodeKey]);
     setSortRadius(egoAndNeighbors);
@@ -647,6 +665,14 @@ d3.egoNetworks = function module() {
     return exports;
   }
 
+  exports['changeColorKey'] = function(_val) {
+    attrs.colorKey = _val;
+    setColorKey(linkAndNode);
+    svg.selectAll('.node')
+      .selectAll('.node-circle')
+      .transition().duration(durationUnit)
+      .style('fill', function(d){return color(d.neighbor[attrs.colorKey]);})
+  }
 
   for (var attr in attrs) {
     if(attrs.hasOwnProperty(attr)) {

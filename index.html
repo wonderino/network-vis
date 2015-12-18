@@ -29,6 +29,9 @@
       d3.select('div.chart.ego-nets')
         .datum(_data)
         .call(egoNetworks)
+      setTimeout(function(){
+        egoNetworks.changeColorKey('occupation')
+      }, 5000)
     }
   })
   </script>
