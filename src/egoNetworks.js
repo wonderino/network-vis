@@ -32,7 +32,7 @@ d3.egoNetworks = function module() {
     , radiusSize = d3.scale.linear().clamp(true)
     , sortRadius = d3.scale.ordinal();
   var innerWidth, innerHeight, netRadius;
-  var nodeAndLink;
+  var nodeAndLink, indexKr, indexEn;
   var svg, sequenceDiv,sequence = [];
 
   Math.radians = function(degrees) {
@@ -74,6 +74,7 @@ d3.egoNetworks = function module() {
       setColorKey(linkAndNode);
       nodeSize.domain([attrs.degreeMin,attrs.degreeMax])
         .rangeRound([innerWidth*.02, innerWidth*.225]);
+      setSearchIndex();
       svg.datum(linkAndNode)
         .call(netInit)
         .on('click', function() {
@@ -83,6 +84,45 @@ d3.egoNetworks = function module() {
         .call(updateSequence);
     })
   }
+
+  function search(query) {
+    var pre = indexKr.search(query);
+    if (pre.length == 0 )pre = indexEn.search(query);
+    var result = pre.map(function(m) {
+      return findNodes(m.ref)[0]
+    })
+    return result;
+  }
+  function findNodes(key) {
+    return linkAndNode.nodes.filter(function(node){
+      return key === node[attrs.nodeKey];
+    })
+  }
+  function setSearchIndex() {
+    var keys = ['team', 'user_name','real_name','ent_name']
+    indexKr = lunr(function() {
+      var self = this;
+      self.use(lunr.jp);
+      keys.forEach(function(k,i) {
+        self.field(k, {boost:(i+1)*10});
+      })
+      self.ref(attrs.nodeKey);
+    })
+    linkAndNode.nodes.forEach(function(n){
+      indexKr.add(n);
+    })
+    indexEn = lunr(function() {
+      var self = this;
+      keys.forEach(function(k,i) {
+        self.field(k, {boost:(i+1)*10});
+      })
+      self.ref(attrs.nodeKey);
+    })
+    linkAndNode.nodes.forEach(function(n){
+      indexEn.add(n);
+    })
+  }
+
   function setColorKey (linkAndNode) {
     var colorExtent = d3.set(linkAndNode.nodes.map(function(d){return d[attrs.colorKey]})).values();
     color.domain(colorExtent);
@@ -653,7 +693,9 @@ d3.egoNetworks = function module() {
       return exports;
     }
   }
-
+  exports['search'] = function(query) {
+    return search(query);
+  }
   exports['sort'] = function (sortKey) {
     if (sortKey !== undefined) {
       attrs.sortKey = 'sortKey';

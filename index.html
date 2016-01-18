@@ -8,6 +8,10 @@
 </head>
 <body>
   <div class="content">
+    <div class="search">
+      <div class="inputs"><input type="search" placeholder="연예인 이름, 팀 명, 인스타그램 아이디"><input type="submit"></div>
+      <div class="results"><ul></ul></div>
+    </div>
     <div class="chart ego-nets">
     </div>
   </div>
@@ -29,9 +33,28 @@
       d3.select('div.chart.ego-nets')
         .datum(_data)
         .call(egoNetworks)
+      /*
       setTimeout(function(){
         egoNetworks.changeColorKey('occupation')
       }, 5000)
+      */
+      d3.select('.search .inputs > input[type="search"]')
+        .on('keyup', function(){
+          if (d3.event.keyCode == 13) { //return
+            //change the network and remove ;
+          } else if (d3.event.keyCode = 40) {
+            d3.selectAll('.search .results > ul > li')
+          } else {
+            //do search and show the list;
+            var query = d3.select(this).node().value;
+            var ul = d3.select('.search .results > ul')
+            var li = ul.selectAll('li')
+              .data(egoNetworks.search(query))
+            li.enter().append('li')
+            li.text(function(d){return d['ent_name']});
+            li.exit().remove();
+          }
+        })
     }
   })
   </script>

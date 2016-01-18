@@ -3,12 +3,16 @@ module.exports = function (grunt) {
     pkg: grunt.file.readJSON('package.json'),
 
     concat: {
-      dependencies: {
+      dep: {
         files : {
           'dependencies.js' : [
             'bower_components/d3/d3.min.js',
             'bower_components/d3-transform/src/d3-transform.js',
-            'bower_components/crossfilter/crossfilter.min.js'
+            'bower_components/crossfilter/crossfilter.min.js',
+            'bower_components/lunr.js/lunr.min.js',
+            'bower_components/lunr-languages/lunr.stemmer.support.js',
+            'bower_components/lunr-languages/tinyseg.js',
+            'bower_components/lunr-languages/lunr.jp.js'
           ]
         }
       },
