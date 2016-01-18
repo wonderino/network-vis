@@ -42,8 +42,8 @@
         .on('keyup', function(){
           if (d3.event.keyCode == 13) { //return
             //change the network and remove ;
-          } else if (d3.event.keyCode = 40) {
-            d3.selectAll('.search .results > ul > li')
+          } else if (d3.event.keyCode == 40) {
+            //d3.selectAll('.search .results > ul > li')
           } else {
             //do search and show the list;
             var query = d3.select(this).node().value;
