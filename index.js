@@ -72,11 +72,7 @@ d3.egoNetworks = function module() {
         sequenceDiv = d3.select(this)
           .append('div')
           .attr('class', 'sequence')
-        detailDiv = d3.select(this)
-          .append('div')
-          .attr('class', 'detail')
-        var profile = detailDiv.append('div')
-          .attr('class', 'profile')
+
 
         svg = d3.select(this).append('svg')
           .attr('width', attrs.width)
@@ -85,6 +81,9 @@ d3.egoNetworks = function module() {
           .attr('transform', d3.svg.transform().translate([margin.left, margin.top]))
         svg.append('g')
           .attr('class', 'background');
+        detailDiv = d3.select(this)
+            .append('div')
+            .attr('class', 'detail')
 
       }
       setColorKey(linkAndNode);
