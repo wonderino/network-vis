@@ -19,7 +19,8 @@ module.exports = function (grunt) {
       dev: {
         files : {
           'index.js': [
-            'src/*.js',
+            'src/egoNetworks.js',
+            'src/taskManager.js'
           ],
           "index.css" : [
             // 'bower_components/normalize.css/normalize.css',

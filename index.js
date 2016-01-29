@@ -1,15 +1,24 @@
 /* TODO :
- [x] 인원에 따른 원 크기 조절
- [x] 정렬 기준 변환
- [] 되돌아가기 기능 추가
- [] 텍스트 표시 등
- [] 색상 교체
- [] 색상 선택 및 정렬 기준 옵션
+ - [x] 키보드 커서 이동
+ - [] search 기능 분리
+ - [] history 기능 분리
+ - [] history 한줄에만 표현되도록 맥시멈 정하기
+ - [] profile 없을때 default 이미지 삽입
+ - [x] 원별로 타이틀 자리 남기기
+  - [] 상단 영역 비워두기 (arc로 그리기?)
+ - [] 중복 코드 단일화 (draw node - draw ego)
+ - [] 데이터 재수집
+ - [] 마우스 오버시 기타 정보 추가하기
+ - [] 통계 추가하기 : Follow - Followed_by - Mutual => 컬러 코드에 의해 통계 내주기
+ - [] 컬러 코드 수정 : 특정 기준 이하 색상 통일
+ - [] 컬러 코드 변경 옵션 추가
+ - [] 배경 원 애니메이션 - 대쉬 어레이 값 변경
+ - [] 연결된 원크기 더 키우기
 */
 d3.egoNetworks = function module() {
   var attrs = {
-    width: 720,
-    height:720,
+    width: 820,
+    height:820,
     egoIndex:0,
     nodeKey:'user_id',
     degreeMin:1,
@@ -18,22 +27,24 @@ d3.egoNetworks = function module() {
     sortKey:'value', // sortKey가 ordinal 인지 linear 인지
     sortType:'number',
     nameKey:'ent_name',
+    teamKey:'team',
+    jobKey:'occupation',
     sortAscending : true,
     sortUnit : 1,
     isDirected : false,
     hierKeys : ['team', 'company'],
-    colorKey : ['company'],
+    colorKey : 'company',
     pictureKey : ['profile_picture']
   }
-  var margin = {top:80, right:120, bottom:80, left:120}
-  var debug = false, sorted = false, durationUnit = 400, profile_size = 100;
+  var margin = {top:120, right:160, bottom:120, left:160};
+  var debug = false, sorted = true, durationUnit = 400, profile_size = 100;
   var nodeSize = d3.scale.linear().clamp(true)
     , color = d3.scale.category20()
     , radiusSize = d3.scale.linear().clamp(true)
     , sortRadius = d3.scale.ordinal();
   var innerWidth, innerHeight, netRadius;
   var nodeAndLink, indexKr, indexEn;
-  var svg, sequenceDiv,sequence = [];
+  var svg, detailDiv, sequenceDiv,sequence = [];
 
   Math.radians = function(degrees) {
     return degrees * Math.PI / 180;
@@ -53,14 +64,19 @@ d3.egoNetworks = function module() {
         innerWidth = attrs.width - margin.left - margin.right;
         innerHeight = attrs.height - margin.top - margin.bottom;
 
-        var minRadius = innerWidth*.5*.65;
-        var maxRadius =  innerWidth*.5*.9;
+        var minRadius = innerWidth*.5*.7;
+        var maxRadius =  innerWidth*.5*.95;
         radiusSize.domain([attrs.degreeMin, attrs.degreeMax])
           .rangeRound([minRadius, maxRadius])
 
         sequenceDiv = d3.select(this)
           .append('div')
           .attr('class', 'sequence')
+        detailDiv = d3.select(this)
+          .append('div')
+          .attr('class', 'detail')
+        var profile = detailDiv.append('div')
+          .attr('class', 'profile')
 
         svg = d3.select(this).append('svg')
           .attr('width', attrs.width)
@@ -83,6 +99,49 @@ d3.egoNetworks = function module() {
       sequenceDiv.datum(sequence)
         .call(updateSequence);
     })
+  }
+  function updateDetail(_selection) {
+    var profile = _selection.selectAll('.profile')
+    var profileEnter = profile.enter().append('div')
+      .attr('profile');
+    profileEnter.append('div')
+      .attr('class', 'name')
+    profileEnter.append('div')
+      .attr('class', 'team')
+    profileEnter.append('div')
+      .attr('class', 'occupation')
+    profileEnter.append('div')
+      .attr('class', 'occupation')
+    profileEnter.append('div')
+      .attr('class', 'picture')
+
+    var stat = _selection.selectAll('.stat')
+      .data(function(d){return d.stats})
+    var statEnter = stat.enter().append('div')
+      .attr('class', 'stat');
+    statEnter.append('ul')
+    var row = stat.selectAll('li.row')
+      .data(function(d){return [d]})
+
+    row.enter().append('li')
+      .attr('class', 'row')
+
+    //TODO : update rows;
+    row.exit().remove();
+
+    stat.exit().remove();
+
+  }
+
+  function imgExists(url, callback) {
+    try {
+      var http = new Image();
+      http.onload = function() {callback(true)};
+      http.onerror = function() {callback(false)};
+      http.src = url;
+    } catch(err) {
+      callback(false);
+    }
   }
 
   function search(query) {
@@ -152,8 +211,8 @@ d3.egoNetworks = function module() {
         sortRadius.domain(domain.map(function(d){return d.key}))
           .rangeRoundPoints(
             attrs.sortAscending ?
-            [profile_size*.25 + netRadius / domain.length, netRadius]
-          : [netRadius, profile_size*.25 + netRadius / domain.length] )
+            [profile_size*.35 + netRadius / domain.length, netRadius]
+          : [netRadius, profile_size*.35 + netRadius / domain.length] )
     }
 
   }
@@ -169,6 +228,7 @@ d3.egoNetworks = function module() {
       .on('click', function(d) {
         var egoAndNeighbors = getEgoAndNeighbors(d[attrs.nodeKey]);
         setSortRadius(egoAndNeighbors);
+        getEgoStat(egoAndNeighbors);
         svg.call(drawNeighbors, egoAndNeighbors.neighbors)
           .call(drawEgo, egoAndNeighbors.ego);
       })
@@ -180,10 +240,23 @@ d3.egoNetworks = function module() {
       var egoAndNeighbors = getEgoAndNeighbors();
       sequence.push(egoAndNeighbors.ego);
       setSortRadius(egoAndNeighbors);
+      getEgoStat(egoAndNeighbors);
       selection.call(drawNeighbors, egoAndNeighbors.neighbors)
         .call(drawEgo, egoAndNeighbors.ego);
     })
     return _selection;
+  }
+
+  function getEgoStat(egoAndNeighbors) {
+    var neighbors = egoAndNeighbors.neighbors.map(function(d){return d.neighbor});
+    console.log(attrs.colorKey)
+    console.log(neighbors);
+    var neighborNest = d3.nest()
+      .key(function(d){return d[attrs.colorKey]})
+      .rollup(function(leaves){return leaves.length})
+      .entries(neighbors);
+    neighborNest.sort(function(a,b){return b.values - a.values});
+    console.log(neighborNest);
   }
 
   function getEgoAndNeighbors(egoIndex) {
@@ -284,8 +357,20 @@ d3.egoNetworks = function module() {
 
     image.enter().append('image')
       .attr('class', 'profile-picture')
-      .attr('clip-path', function(d){return 'url(#egoClip-'+d[attrs.nodeKey]+')'})
-      .attr('xlink:href', function(d){return d[attrs.pictureKey]})
+      .each(function(d){
+        var url = d[attrs.pictureKey];
+        var self = this;
+        imgExists(url, function(exists){
+          if (exists){
+            d3.select(self)
+              .attr('clip-path', function(){return 'url(#egoClip-'+d[attrs.nodeKey]+')'})
+              .attr('xlink:href', function(){return url;})
+          } else {
+            d3.select(self)
+              .classed('no-image', false);
+          }
+        });
+      })
 
     var circle = ego.selectAll('.node-circle')
         .data(function(d){return [d]})
@@ -302,9 +387,11 @@ d3.egoNetworks = function module() {
       .attr('width', profile_size)
       .attr('height', profile_size)
 
-
     egoEnter.append('text')
       .attr('class', 'node-text');
+
+    egoEnter.append('text')
+      .attr('class', 'node-sub-text');
 
     ego.transition().duration(durationUnit)
       .attr('transform', d3.svg.transform()
@@ -318,14 +405,22 @@ d3.egoNetworks = function module() {
       .transition().duration(durationUnit)
       .attr('dx', 0)
       .attr('y', 50)
-      .attr('dy', '1.35em')
+      .attr('dy', '1.35em');
+    ego.select('.node-sub-text')
+      .text(function(d){return !d[attrs.teamKey] || d[attrs.teamKey]=='-' ? d[attrs.jobKey] : d[attrs.teamKey]})
+      .attr('transform', null)
+      .attr('text-anchor', 'middle')
+      .transition().duration(durationUnit)
+      .attr('dx', 0)
+      .attr('y', 65)
+      .attr('dy', '2em');
     ego.exit().remove();
     return selection;
   }
 
   function drawNeighbors(selection, neighborsData) {
-    var thetaUnit = Math.PI*2/ neighborsData.length,
-      thetaOffset = thetaUnit *.3
+    var thetaOffset = (sorted ? Math.PI * .25 : 0),
+     thetaUnit = (Math.PI*2 - thetaOffset)/ Math.max(1,(neighborsData.length-(sorted ? 1 : 0)));
 
     var background = selection.select('.background')
       .selectAll('.background-circle')
@@ -347,19 +442,18 @@ d3.egoNetworks = function module() {
         .attr('r', function(d){return d[0]})
 
     if (sorted) {
-      var text = background.selectAll('text')
+      var text = background.selectAll('text') // FIXME : 상단에 쓰기
         .data(function(d){return [d]})
       .enter().append('text')
-        .attr('text-anchor','end')
+        .attr('text-anchor','middle')
         .text(function(d){return d[1]})
         .style('opacity', 0)
         .attr('x', 0)
-        .attr('dx', '-.45em')
         .attr('dy', '.35em')
 
       text.transition().duration(durationUnit)
         .style('opacity', 1)
-        .attr('x', function(d){return d[0]})
+        .attr('y', function(d){return -d[0]})
 
     } else {
       background.selectAll('text')
@@ -395,7 +489,7 @@ d3.egoNetworks = function module() {
 
     neighbors.call(setNeighborInteraction)
       .each(function(d,i) {
-        d.theta = thetaUnit*i;
+        d.theta = thetaOffset*.525 + thetaUnit*i - Math.HALF_PI;
       }).call(setNeighborPos)
 
     neighbors.transition().delay(durationUnit*.5)
@@ -417,14 +511,26 @@ d3.egoNetworks = function module() {
       .transition().duration(durationUnit)
       .attr('r', 25);
 
+
     var image = neighbors.selectAll('.profile-picture')
       .data(function(d){return [d]})
 
     image.enter().append('image')
       .attr('class', 'profile-picture')
-      .attr('clip-path', function(d){return 'url(#egoClip-'+d.neighbor[attrs.nodeKey]+')'})
-      .attr('xlink:href', function(d){return d.neighbor[attrs.pictureKey]})
-
+      .each(function(d){
+        var url = d.neighbor[attrs.pictureKey];
+        var self = this;
+        imgExists(url, function(exists){
+          if (exists){
+            d3.select(self)
+              .attr('clip-path', function(){return 'url(#egoClip-'+d.neighbor[attrs.nodeKey]+')'})
+              .attr('xlink:href', function(){return url;})
+          } else {
+            d3.select(self)
+              .classed('no-image', true);
+          }
+        });
+      })
     image.attr('x', -25)
       .attr('y', -25)
       .attr('width', 50)
@@ -435,7 +541,7 @@ d3.egoNetworks = function module() {
     circle.enter().append('circle')
       .attr('class', 'node-circle')
 
-    circle.attr('r', function(d){return attrs.valueKey && d.linkToEgo[attrs.valueKey] ? nodeSize(d.linkToEgo[attrs.valueKey]) : 4})
+    circle.attr('r', function(d){return attrs.valueKey && d.linkToEgo[attrs.valueKey] ? nodeSize(d.linkToEgo[attrs.valueKey]) : 5})
       .style('fill', function(d){return color(d.neighbor[attrs.colorKey]);})
 
     var text = neighbors.selectAll('.node-text')
@@ -460,6 +566,11 @@ d3.egoNetworks = function module() {
       .attr('y', 0)
       .attr('dy', '.35em')
 
+    neighbors.selectAll('.node-sub-text')
+      .data(function(d){return [d]})
+
+    text.enter().append('text')
+      .attr('class', 'node-sub-text')
 
     var linkRadius = d3.scale.linear()
       .domain([0, Math.HALF_PI])
@@ -495,17 +606,6 @@ d3.egoNetworks = function module() {
       });
     })
     neighbors.exit().remove();
-    /*
-    var link = selection.selectAll('.link')
-      .data(linkData, function(d){return d[0].node.neighbor[attrs.nodeKey] + '-' +d[d.length-1].node.neighbor[attrs.nodeKey]})
-
-    link.enter().append('path')
-      .attr('class', 'link')
-
-    link.transition().delay(durationUnit*.5).duration(durationUnit)
-      .attr('d', linkLine);
-    link.exit().remove();
-    */
     return selection;
   }
 
@@ -531,7 +631,8 @@ d3.egoNetworks = function module() {
       .attr('class', 'node-circle');
     neighborsEnter.append('text')
       .attr('class', 'node-text');
-
+    neighborsEnter.append('text')
+        .attr('class', 'node-sub-text')
     neighbors.transition().delay(durationUnit*.5).duration(durationUnit)
       .style('opacity', 1)
       .attr('transform', d3.svg.transform().translate(function(d,i) {return [d.x, d.y] }))
@@ -564,7 +665,7 @@ d3.egoNetworks = function module() {
       var sortVal = d.linkToEgo[attrs.sortKey];
       var radius = (sorted ? sortRadius(attrs.sortType=== 'number'?  trimValForSort(sortVal): sortVal) : netRadius);
       if (isRest) {
-        radius = (sorted ? sortRadius.rangeExtent()[1]: netRadius) * 1.525;
+        radius = (sorted ? sortRadius.rangeExtent()[1]: netRadius) * 1.4;
       }
       d.x = cx+Math.cos(d.theta)*radius;
       d.y = cy+Math.sin(d.theta)*radius;
@@ -601,13 +702,17 @@ d3.egoNetworks = function module() {
 
       var curIndex = d[attrs.nodeKey];
       var linkToNeighbors = d.linkToNeighbors;
-      var neighbors = d3.select(thisNode.node().parentNode)
+      d3.select(thisNode.node().parentNode)
         .selectAll('.neighbor.main')
         .filter(function(n) {
           var index = n[attrs.nodeKey];
           if (index !== curIndex) return _isNeighbor(index, linkToNeighbors);
           return false;
         }).classed({'linked':true})
+
+      d3.select(thisNode.node().parentNode)
+        .selectAll('.neighbor.main:not(.linked):not(.hover)')
+        .classed('unlinked', true);
 
       var egoAndNeighbors = getEgoAndNeighbors(curIndex);
 
@@ -664,6 +769,8 @@ d3.egoNetworks = function module() {
     oldEgo.select('defs > clipPath > circle')
       .transition().duration(durationUnit)
       .attr('r', 0)
+    oldEgo.select('.node-sub-text')
+      .text('');
 
     var ego = _selection
       .classed({'ego': true, 'neighbor':false, 'main':false, 'hover':false})
@@ -692,6 +799,14 @@ d3.egoNetworks = function module() {
       attrs[_attr] = value;
       return exports;
     }
+  }
+  exports['ego'] = function(_ego) {
+    sequence.push(_ego);// sequence 삽입
+    sequenceDiv.call(updateSequence);
+    var egoAndNeighbors = getEgoAndNeighbors(_ego[attrs.nodeKey]);
+    setSortRadius(egoAndNeighbors);
+    svg.call(drawNeighbors, egoAndNeighbors.neighbors)
+      .call(drawEgo, egoAndNeighbors.ego);
   }
   exports['search'] = function(query) {
     return search(query);
@@ -725,6 +840,95 @@ d3.egoNetworks = function module() {
   return exports;
 }
 
-d3.egoNetworksSub = function module() {
-  
+var egoNetworks = d3.egoNetworks()
+  .egoIndex('1499879597')//('242998577')
+  .sortKey('type')
+  .degreeMax(130)
+  .sortType('string')
+  .nodeKey('user_id')
+  .valueKey(null)
+  .isDirected(true);
+d3.json('data/instastar.json', function(_err,_data) {
+  if(_err) {console.log(_err)}
+  else {
+
+    d3.select('div.chart.ego-nets')
+      .datum(_data)
+      .call(egoNetworks)
+    /*
+    setTimeout(function(){
+      egoNetworks.changeColorKey('occupation')
+    }, 5000)
+    */
+    d3.select('.search .inputs > input[type="search"]')
+      .call(setKeyInteraction);
+  }
+})
+
+function setKeyInteraction(_selection) {
+  _selection.on('keyup', function() {
+    if (d3.event.keyCode == 13) { //return
+      //change the network and remove ;
+      var ul = d3.select('.search .results > ul');
+      if (ul.selectAll('li').size() == 0) return false;
+      var selected = ul.selectAll('li.selected');
+      var datum;
+      if (selected.size() == 0) {
+        datum = ul.selectAll('li:first-child').datum();
+      } else {
+        datum = selected.datum();
+      }
+      // delete results;
+      d3.select('.search .inputs > input[type="search"]')
+        .property('value', '');
+      ul.selectAll('li')
+        .remove();
+      egoNetworks.ego(datum);
+      // transfer the datum to the network;
+    } else if (d3.event.keyCode == 40) { //down
+      var ul = d3.select('.search .results > ul');
+      var selected = ul.selectAll('li.selected');
+      if(selected.size() == 0) {
+        ul.selectAll('li:first-child')
+          .classed('selected', true);
+      } else {
+        ul.selectAll('li.selected + li')
+          .classed('selected', true);
+        selected.classed('selected', false);
+      }
+      return false;
+    } else if (d3.event.keyCode == 38) { //up
+      var ul = d3.select('.search .results > ul');
+      var selected = ul.selectAll('li.selected');
+      if(selected.size() == 0) {
+        ul.selectAll('li:last-child')
+          .classed('selected', true);
+      } else {
+        selected.classed('after-selected', true);
+        ul.selectAll('li.selected ~ li')
+          .classed('after-selected', true);
+        var before = ul.selectAll('li:not(.after-selected)')
+          before.filter(function(d,i) {
+            return (i === before.size()-1)
+          }).classed('selected', true);
+        selected.classed('selected', false);
+        ul.selectAll('li.after-selected')
+          .classed('after-selected', false);
+      }
+    } else { //
+      //do search and show the list;
+      var query = d3.select(this).node().value;
+      var ul = d3.select('.search .results > ul');
+      if(query=='') console.log('empty');
+      var results = egoNetworks.search(query);
+      var li = ul.selectAll('li')
+        .data(results);
+      li.enter().append('li')
+      li.text(function(d){return d['ent_name']});
+      li.exit().remove();
+    }
+    d3.event.returnValue = false
+    return false;
+  })
+  return _selection;
 }

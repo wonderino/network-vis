@@ -17,46 +17,5 @@
   </div>
   <script src="dependencies.js"></script>
   <script src="index.js"></script>
-  <script>
-  d3.json('data/instastar.json', function(_err,_data) {
-    if(_err) {console.log(_err)}
-    else {
-      var egoNetworks = d3.egoNetworks()
-        .egoIndex('1499879597')//('242998577')
-        .sortKey('type')
-        .degreeMax(130)
-        .sortType('string')
-        .nodeKey('user_id')
-        .valueKey(null)
-        .isDirected(true)
-
-      d3.select('div.chart.ego-nets')
-        .datum(_data)
-        .call(egoNetworks)
-      /*
-      setTimeout(function(){
-        egoNetworks.changeColorKey('occupation')
-      }, 5000)
-      */
-      d3.select('.search .inputs > input[type="search"]')
-        .on('keyup', function(){
-          if (d3.event.keyCode == 13) { //return
-            //change the network and remove ;
-          } else if (d3.event.keyCode == 40) {
-            //d3.selectAll('.search .results > ul > li')
-          } else {
-            //do search and show the list;
-            var query = d3.select(this).node().value;
-            var ul = d3.select('.search .results > ul')
-            var li = ul.selectAll('li')
-              .data(egoNetworks.search(query))
-            li.enter().append('li')
-            li.text(function(d){return d['ent_name']});
-            li.exit().remove();
-          }
-        })
-    }
-  })
-  </script>
 </body>
 </html>
