@@ -30,18 +30,19 @@ d3.egoNetworks = function module() {
     isDirected : false,
     hierKeys : ['team', 'company'],
     colorKey : 'company',
-    pictureKey : ['profile_picture']
+    pictureKey : ['profile_picture'],
+    colors: ['rgb(235, 62, 69)', 'rgb(26, 175, 145)', 'rgb(161, 97, 185)', 'rgb(233, 208, 28)']
   }
   var margin = {top:120, right:160, bottom:120, left:160};
   var debug = false, sorted = true, durationUnit = 400, profile_size = 100;
   var nodeSize = d3.scale.linear().clamp(true)
-    , color = d3.scale.category20()
+    , color = d3.scale.ordinal()
     , radiusSize = d3.scale.linear().clamp(true)
     , sortRadius = d3.scale.ordinal();
   var innerWidth, innerHeight, netRadius;
   var nodeAndLink, indexKr, indexEn;
   var svg, detailDiv, sequenceDiv,sequence = [];
-
+  var defaultColor = '#c9c9c9';
   Math.radians = function(degrees) {
     return degrees * Math.PI / 180;
   };
@@ -68,7 +69,6 @@ d3.egoNetworks = function module() {
         sequenceDiv = d3.select(this)
           .append('div')
           .attr('class', 'sequence')
-
 
         svg = d3.select(this).append('svg')
           .attr('width', attrs.width)
@@ -207,8 +207,14 @@ d3.egoNetworks = function module() {
   }
 
   function setColorKey (linkAndNode) {
-    var colorExtent = d3.set(linkAndNode.nodes.map(function(d){return d[attrs.colorKey]})).values();
-    color.domain(colorExtent);
+    var colorExtent = d3.nest()
+      .key(function(d){return d[attrs.colorKey]})
+      .rollup(function(leaves){return leaves.length})
+      .entries(linkAndNode.nodes)
+      //d3.set(linkAndNode.nodes.map(function(d){return d[attrs.colorKey]})).values();
+    colorExtent.sort(function(a,b){return b.values-a.values});
+    color.domain(colorExtent.map(function(d){return d.key}).slice(0, attrs.colors.length))
+      .range(attrs.colors);
   }
 
   function trimValForSort (d) {
@@ -424,7 +430,7 @@ d3.egoNetworks = function module() {
     circle.transition().duration(durationUnit)
       .attr('r', function(d){return profile_size*.5})
       .style('fill', 'none')
-      .style('stroke', function(d){return color(d[attrs.colorKey]);})
+      .style('stroke', function(d){return color.domain().indexOf(d[attrs.colorKey]) >=0 ? color(d[attrs.colorKey]) : defaultColor})
 
     image.attr('x', -profile_size*.5)
       .attr('y', -profile_size*.5)
@@ -597,7 +603,7 @@ d3.egoNetworks = function module() {
       .attr('class', 'node-circle')
 
     circle.attr('r', function(d){return attrs.valueKey && d.linkToEgo[attrs.valueKey] ? nodeSize(d.linkToEgo[attrs.valueKey]) : 5})
-      .style('fill', function(d){return color(d.neighbor[attrs.colorKey]);})
+      .style('fill', function(d){return color.domain().indexOf(d.neighbor[attrs.colorKey]) >=0 ? color(d.neighbor[attrs.colorKey]) : defaultColor})
 
     var text = neighbors.selectAll('.node-text')
       .data(function(d){return [d]})
@@ -694,7 +700,7 @@ d3.egoNetworks = function module() {
 
     neighbors.selectAll('.node-circle')
       .attr('r', function(d){return (attrs.valueKey && d.linkToEgo[attrs.valueKey] ? nodeSize(d.linkToEgo[attrs.valueKey]) : 4)*.75})
-      .style('fill', function(d){return color(d.neighbor[attrs.colorKey]);})
+      .style('fill', function(d){return color.domain().indexOf(d.neighbor[attrs.colorKey]) >=0 ? color(d.neighbor[attrs.colorKey]) : defaultColor})
 
     neighbors.selectAll('.node-text')
       .data(function(d){return [d]})
@@ -744,7 +750,7 @@ d3.egoNetworks = function module() {
       thisNode.classed({'hover': true})
       thisNode.select('.node-circle')
         .style('fill', 'none')
-        .style('stroke', function(d){return color(d.neighbor[attrs.colorKey])})
+        .style('stroke', function(d){return color.domain().indexOf(d.neighbor[attrs.colorKey]) >=0 ? color(d.neighbor[attrs.colorKey]) : defaultColor})
         .transition().duration(durationUnit)
         .attr('r', function(d){return profile_size*.25})
 
@@ -778,7 +784,8 @@ d3.egoNetworks = function module() {
     }).on('mouseleave.neighbor', function() {
       var thisNode = d3.select(this);
       thisNode.select('.node-circle')
-          .style('fill', function(d){return color(d.neighbor[attrs.colorKey]);})
+          .style('fill', function(d){return color.domain().indexOf(d.neighbor[attrs.colorKey]) >=0 ? color(d.neighbor[attrs.colorKey]) : defaultColor})
+          .style('stroke', 'none')
           .transition().duration(durationUnit)
           .attr('r', function(d){return attrs.valueKey && d.linkToEgo[attrs.valueKey] ? nodeSize(d.linkToEgo[attrs.valueKey]) : 4})
       thisNode.select('.node-text')

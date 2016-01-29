@@ -77,7 +77,7 @@ body {
   font-size : 14px;
 }
 .ego-nets .neighbor.node.unlinked {
-  fill-opacity : .45;
+  fill-opacity : .15;
 }
 
 .ego-nets .neighbor.node.linked .node-text{
