@@ -29,6 +29,7 @@ d3.egoNetworks = function module() {
     nameKey:'ent_name',
     teamKey:'team',
     jobKey:'occupation',
+    companyKey:'company',
     sortAscending : true,
     sortUnit : 1,
     isDirected : false,
@@ -121,6 +122,7 @@ d3.egoNetworks = function module() {
       profile.call(_appendProfileElements,'name', attrs.nameKey)
         .call(_appendProfileElements,'team', attrs.teamKey)
         .call(_appendProfileElements,'occupation', attrs.jobKey)
+        .call(_appendProfileElements,'company', attrs.companyKey)
 
       var stat = selection.selectAll('.stat')
         .data(function(d){return d.stat})
