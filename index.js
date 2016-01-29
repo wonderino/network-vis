@@ -1,24 +1,18 @@
 /* TODO :
- - [x] 키보드 커서 이동
  - [] search 기능 분리
  - [] history 기능 분리
  - [] history 한줄에만 표현되도록 맥시멈 정하기
- - [] profile 없을때 default 이미지 삽입
- - [x] 원별로 타이틀 자리 남기기
   - [] 상단 영역 비워두기 (arc로 그리기?)
  - [] 중복 코드 단일화 (draw node - draw ego)
- - [] 데이터 재수집
  - [] 마우스 오버시 기타 정보 추가하기
- - [] 통계 추가하기 : Follow - Followed_by - Mutual => 컬러 코드에 의해 통계 내주기
  - [] 컬러 코드 수정 : 특정 기준 이하 색상 통일
  - [] 컬러 코드 변경 옵션 추가
  - [] 배경 원 애니메이션 - 대쉬 어레이 값 변경
- - [] 연결된 원크기 더 키우기
 */
 d3.egoNetworks = function module() {
   var attrs = {
-    width: 820,
-    height:820,
+    width: 880,
+    height:880,
     egoIndex:0,
     nodeKey:'user_id',
     degreeMin:1,
@@ -26,12 +20,13 @@ d3.egoNetworks = function module() {
     valueKey:'value', //null 이면 갯수로 센다.
     sortKey:'value', // sortKey가 ordinal 인지 linear 인지
     sortType:'number',
+    sortAscending : true,
+    sortUnit : 1,
+    sortMap : {'follow':'팔로잉', 'followed_by':'팔로워', 'mutual':'맞팔'},
     nameKey:'ent_name',
     teamKey:'team',
     jobKey:'occupation',
     companyKey:'company',
-    sortAscending : true,
-    sortUnit : 1,
     isDirected : false,
     hierKeys : ['team', 'company'],
     colorKey : 'company',
@@ -65,8 +60,8 @@ d3.egoNetworks = function module() {
         innerWidth = attrs.width - margin.left - margin.right;
         innerHeight = attrs.height - margin.top - margin.bottom;
 
-        var minRadius = innerWidth*.5*.7;
-        var maxRadius =  innerWidth*.5*.95;
+        var minRadius = innerWidth*.5*.8;
+        var maxRadius =  innerWidth*.5;
         radiusSize.domain([attrs.degreeMin, attrs.degreeMax])
           .rangeRound([minRadius, maxRadius])
 
@@ -127,9 +122,14 @@ d3.egoNetworks = function module() {
       var stat = selection.selectAll('.stat')
         .data(function(d){return d.stat})
 
-      stat.enter().append('div')
+      var statEnter = stat.enter().append('div')
         .attr('class', 'stat')
-        stat.text(function(d){return d.key});
+      statEnter.append('div')
+        .attr('class', 'key')
+      statEnter.append('div')
+        .attr('class', 'value')
+      stat.select('.key').text(function(d){return attrs.sortMap[d.key] ? attrs.sortMap[d.key]:d.key});
+      stat.select('.value').text(function(d){return d3.sum(d.values, function(dd){return dd.values})});
         stat.exit().remove();
       var ul =  stat.selectAll('ul')
         .data(function(d){return [d.values]})
@@ -463,7 +463,7 @@ d3.egoNetworks = function module() {
   }
 
   function drawNeighbors(selection, neighborsData) {
-    var thetaOffset = (sorted ? Math.PI * .25 : 0),
+    var thetaOffset = (sorted ? Math.PI * .20 : 0),
      thetaUnit = (Math.PI*2 - thetaOffset)/ Math.max(1,(neighborsData.length-(sorted ? 1 : 0)));
 
     var background = selection.select('.background')
@@ -478,22 +478,33 @@ d3.egoNetworks = function module() {
     var backgroundEnter = background.enter().append('g')
       .attr('transform', d3.svg.transform().translate([innerWidth/2, innerHeight/2]))
       .attr('class', 'background-circle')
-    //zip
-    var circle = backgroundEnter.append('circle')
-        .attr('r', 0)
+    background.sort(function(a,b){return b[0]- a[0]})
+      .order();
 
-      circle.transition().duration(durationUnit)
-        .attr('r', function(d){return d[0]})
+    var circle = backgroundEnter
+    .each(function(d) {
+      var arc = d3.svg.arc()
+        .innerRadius(d[0]+2)
+        .outerRadius(null)
+        .endAngle(Math.TWO_PI + thetaOffset*.5)
+        .startAngle(Math.TWO_PI - thetaOffset*.5);
+
+      d3.select(this).append('circle')
+       .attr('r', d[0]);
+      d3.select(this).append('path')
+        .attr('d', arc);
+    });
+    //.attr('r', function(d){return d[0]})
 
     if (sorted) {
       var text = background.selectAll('text') // FIXME : 상단에 쓰기
         .data(function(d){return [d]})
       .enter().append('text')
         .attr('text-anchor','middle')
-        .text(function(d){return d[1]})
         .style('opacity', 0)
         .attr('x', 0)
         .attr('dy', '.35em')
+        .text(function(d){return attrs.sortMap[d[1]] ? attrs.sortMap[d[1]]:d[1]})
 
       text.transition().duration(durationUnit)
         .style('opacity', 1)
@@ -709,7 +720,7 @@ d3.egoNetworks = function module() {
       var sortVal = d.linkToEgo[attrs.sortKey];
       var radius = (sorted ? sortRadius(attrs.sortType=== 'number'?  trimValForSort(sortVal): sortVal) : netRadius);
       if (isRest) {
-        radius = (sorted ? sortRadius.rangeExtent()[1]: netRadius) * 1.4;
+        radius = (sorted ? sortRadius.rangeExtent()[1]: netRadius) * 1.35;
       }
       d.x = cx+Math.cos(d.theta)*radius;
       d.y = cy+Math.sin(d.theta)*radius;
@@ -824,7 +835,7 @@ d3.egoNetworks = function module() {
           d[k] = egoAndNeighbors.ego[k];
         }
       }).on('mouseenter.neighbor', null)
-      .on('mouseclick.neighbor', null)
+      .on('click.neighbor', null)
       .on('mouseleave.neighbor', null)
       .select('.node-circle')
 

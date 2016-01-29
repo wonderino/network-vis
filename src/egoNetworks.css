@@ -19,8 +19,10 @@ body {
   stroke : #ccc;
   stroke-width : 2px;
   stroke-dasharray: 10 8 ;
-  /*fill : #E8591D;*/
-  fill-opacity : .05;
+  fill : none;
+}
+.ego-nets .background path{
+ fill : #222;
 }
 
 .ego-nets .node {
