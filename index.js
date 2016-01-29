@@ -101,36 +101,59 @@ d3.egoNetworks = function module() {
     })
   }
   function updateDetail(_selection) {
-    var profile = _selection.selectAll('.profile')
-    var profileEnter = profile.enter().append('div')
-      .attr('profile');
-    profileEnter.append('div')
-      .attr('class', 'name')
-    profileEnter.append('div')
-      .attr('class', 'team')
-    profileEnter.append('div')
-      .attr('class', 'occupation')
-    profileEnter.append('div')
-      .attr('class', 'occupation')
-    profileEnter.append('div')
-      .attr('class', 'picture')
+    _selection.each(function(_data) {
+      var selection = d3.select(this);
+      var profile = selection.selectAll('.profile')
+        .data(function(d){return [d.ego]});
 
-    var stat = _selection.selectAll('.stat')
-      .data(function(d){return d.stats})
-    var statEnter = stat.enter().append('div')
-      .attr('class', 'stat');
-    statEnter.append('ul')
-    var row = stat.selectAll('li.row')
-      .data(function(d){return [d]})
+      profile.enter().append('div')
+        .attr('class','profile');
+      var _appendProfileElements = function(_selection, className, keyName) {
+        _selection.each(function() {
+          var name = d3.select(this).selectAll('.' + className)
+            .data(function(d){return [d[keyName]]});
+          name.enter().append('div')
+              .attr('class', className);
+          name.text(function(d){return d});
+        })
+        return _selection;
+      }
 
-    row.enter().append('li')
-      .attr('class', 'row')
+      profile.call(_appendProfileElements,'name', attrs.nameKey)
+        .call(_appendProfileElements,'team', attrs.teamKey)
+        .call(_appendProfileElements,'occupation', attrs.jobKey)
 
-    //TODO : update rows;
-    row.exit().remove();
+      var stat = selection.selectAll('.stat')
+        .data(function(d){return d.stat})
 
-    stat.exit().remove();
+      stat.enter().append('div')
+        .attr('class', 'stat')
+        stat.text(function(d){return d.key});
+        stat.exit().remove();
+      var ul =  stat.selectAll('ul')
+        .data(function(d){return [d.values]})
+      ul.enter().append('ul');
 
+
+      var row = ul.selectAll('li.row')
+        .data(function(d){return d})
+      var rowEnter = row.enter().append('li')
+        .attr('class', 'row')
+      rowEnter.append('div')
+        .attr('class', 'key')
+      rowEnter.append('div')
+        .attr('class', 'value')
+      row.select('.key')
+        .text(function(d){return d.key})
+      row.select('.value')
+        .text(function(d){return d.values})
+
+      //TODO : update rows;
+      row.exit().remove();
+
+    });
+
+    return _selection;
   }
 
   function imgExists(url, callback) {
@@ -217,6 +240,16 @@ d3.egoNetworks = function module() {
 
   }
 
+  function resetEgoAndNeighbors(_selection, egoAndNeighbors) {
+    var egoStat = getEgoStat(egoAndNeighbors);
+    _selection.call(drawNeighbors, egoAndNeighbors.neighbors)
+      .call(drawEgo, egoAndNeighbors.ego);
+
+    detailDiv.datum({ego: egoAndNeighbors.ego, stat:egoStat})
+      .call(updateDetail);
+    return _selection;
+  }
+
   function updateSequence(_selection) {
     var sequenceLimit = 12;
     var sequence = _selection.selectAll('.node')
@@ -228,9 +261,7 @@ d3.egoNetworks = function module() {
       .on('click', function(d) {
         var egoAndNeighbors = getEgoAndNeighbors(d[attrs.nodeKey]);
         setSortRadius(egoAndNeighbors);
-        getEgoStat(egoAndNeighbors);
-        svg.call(drawNeighbors, egoAndNeighbors.neighbors)
-          .call(drawEgo, egoAndNeighbors.ego);
+        svg.call(resetEgoAndNeighbors, egoAndNeighbors);
       })
   }
 
@@ -240,23 +271,35 @@ d3.egoNetworks = function module() {
       var egoAndNeighbors = getEgoAndNeighbors();
       sequence.push(egoAndNeighbors.ego);
       setSortRadius(egoAndNeighbors);
-      getEgoStat(egoAndNeighbors);
-      selection.call(drawNeighbors, egoAndNeighbors.neighbors)
-        .call(drawEgo, egoAndNeighbors.ego);
+      selection.call(resetEgoAndNeighbors, egoAndNeighbors);
     })
     return _selection;
   }
 
   function getEgoStat(egoAndNeighbors) {
-    var neighbors = egoAndNeighbors.neighbors.map(function(d){return d.neighbor});
-    console.log(attrs.colorKey)
-    console.log(neighbors);
+    var neighbors = egoAndNeighbors.neighbors;
     var neighborNest = d3.nest()
-      .key(function(d){return d[attrs.colorKey]})
+      .key(function(d){return d.linkToEgo.type})
+      .key(function(d){return d.neighbor[attrs.colorKey]})
       .rollup(function(leaves){return leaves.length})
+      .sortValues(d3.descending)
       .entries(neighbors);
-    neighborNest.sort(function(a,b){return b.values - a.values});
-    console.log(neighborNest);
+
+    neighborNest.forEach(function(d1){
+      d1.values.sort(function(a,b){return b.values - a.values});
+    })
+    neighborNest.sort(function(a,b){return d3.sum(b.values, function(d){return d.values}) - d3.sum(a.values, function(d){return d.values})});
+    var threshold = 4;
+    neighborNest.forEach(function(d) {
+      if (d.values.length > threshold) {
+        var sum = d.values.slice(threshold).reduce(function(pre, cur){
+          return pre + cur.values;
+        }, 0)
+        d.values = d.values.slice(0, threshold);
+        d.values.push({key:'기타', values:sum});
+      }
+    })
+    return neighborNest;
   }
 
   function getEgoAndNeighbors(egoIndex) {
@@ -787,10 +830,8 @@ d3.egoNetworks = function module() {
     svg.selectAll('.neighbor.sub')
       .classed({'sub':false, 'main':true});
 
-    svg.call(drawEgo, egoAndNeighbors.ego)
-      .call(drawNeighbors, egoAndNeighbors.neighbors);
-
-    svg.selectAll('.neighbor.sub')
+    svg.call(resetEgoAndNeighbors, egoAndNeighbors);
+    return _selection;
   }
 
   function accessor(_attr) {
@@ -805,8 +846,7 @@ d3.egoNetworks = function module() {
     sequenceDiv.call(updateSequence);
     var egoAndNeighbors = getEgoAndNeighbors(_ego[attrs.nodeKey]);
     setSortRadius(egoAndNeighbors);
-    svg.call(drawNeighbors, egoAndNeighbors.neighbors)
-      .call(drawEgo, egoAndNeighbors.ego);
+    svg.call(resetEgoAndNeighbors, egoAndNeighbors);
   }
   exports['search'] = function(query) {
     return search(query);
