@@ -24,7 +24,8 @@ module.exports = function (grunt) {
           ],
           "index.css" : [
             // 'bower_components/normalize.css/normalize.css',
-            'src/*.css'
+            'src/egoNetworksPage.css',
+            'src/egoNetworks.css'
           ]
         }
       }

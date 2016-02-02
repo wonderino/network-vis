@@ -1,11 +1,6 @@
-@import url(//spoqa.github.io/spoqa-han-sans/css/SpoqaHanSans-kr.css);
-body {
-  background-color : #222;
-}
+
 .ego-nets {
-  color : #fff;
-  font-family: 'Spoqa Han Sans', 'Sans-serif';
-  margin : 0 auto;
+
 }
 
 .ego-nets .node {
@@ -18,8 +13,14 @@ body {
 .ego-nets .background circle{
   stroke : #ccc;
   stroke-width : 2px;
-  stroke-dasharray: 10 8 ;
+  stroke-dasharray: 8 6 ;
   fill : none;
+}
+
+.ego-nets .background .mutual circle {
+  stroke : #009cff;
+  stroke-dasharray: 6 6 ;
+
 }
 .ego-nets .background path{
  fill : #222;
@@ -29,9 +30,13 @@ body {
   pointer-events: bounding-box;
 }
 
-.ego-nets .background text{
+.ego-nets .background .category text{
   fill : #fff;
   font-size : 14px;
+}
+
+.ego-nets .background .background-circle.mutual .category text {
+  fill : #009cff;
 }
 
 .ego-nets .ego.node .node-circle{
@@ -41,6 +46,7 @@ body {
 .ego-nets .ego.node text{
   stroke:none;
   fill : #fff;
+  font-size : 16px;
 }
 
 .ego-nets .ego.node .node-sub-text {
@@ -98,22 +104,4 @@ body {
 
 .ego-nets .sub .neighbor.node .node-circle{
   stroke : none;
-}
-
-.ego-nets .sequence {
-  display : flex;
-  flex-wrap : wrap;
-}
-
-.ego-nets .sequence .node {
-  margin : 4px;
-}
-
-.content .search li.selected {
-  background : #fcd4a0;
-}
-
-.content .search .results {
-  position : absolute;
-  color : #fff;
 }

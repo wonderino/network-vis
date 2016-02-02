@@ -7,14 +7,22 @@
 <link rel=stylesheet href="index.css" type="text/css" media=screen>
 </head>
 <body>
-  <div class="content">
-    <div class="search">
-      <div class="inputs"><input type="search" placeholder="연예인 이름, 팀 명, 인스타그램 아이디"><input type="submit"></div>
-      <div class="results"><ul></ul></div>
+  <header>
+    <div>
+      <img class="logo" src="img/logo.png"/>
+      <div class="search inputs">
+        <input type="search" placeholder="연예인 이름, 팀 명, 인스타그램 아이디">
+        <div class="search results"><ul></ul></div>
+      </div>
     </div>
-    <div class="chart ego-nets">
-    </div>
-  </div>
+  </header>
+  <section class="instastar content">
+    <div class="sequence"><div class="title"><div class="name">내가 본 인물</div></div><div class="list"></div></div>
+    <div class="chart ego-nets"></div>
+    <div class="detail"></div>
+  </section>
+  <footer>
+  </footer>
   <script src="dependencies.js"></script>
   <script src="index.js"></script>
 </body>
