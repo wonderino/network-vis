@@ -23,7 +23,7 @@ d3.egoNetworks = function module() {
     sortAscending : true,
     sortUnit : 1,
     sortMap : {'mutual':'맞 팔', 'follow':'팔로잉', 'followed_by':'팔로워'},
-    sortDescMap : {'mutual':'상호 팔로우한 사이', 'follow':'대상이 팔로우 했으나 맞팔이 아닌 사이', 'followed_by':'대상을 팔로우 했으나 맞팔이 아닌 사이'},
+    sortDescMap : {'mutual':'서로 팔로우한 사이', 'follow':'대상이 팔로우 했으나 맞팔이 아닌 사이', 'followed_by':'대상을 팔로우 했으나 맞팔이 아닌 사이'},
     nameKey:'ent_name',
     teamKey:'team',
     jobKey:'occupation',
@@ -107,7 +107,8 @@ d3.egoNetworks = function module() {
       profileTitleEnter.append('div').attr('class', 'name')
         .text('인물정보')
       profileTitleEnter.append('div').attr('class', 'value')
-        .text(function(d){return '@'+d[attrs.idKey]})
+
+      profile.select('.value').text(function(d){return '@'+d[attrs.idKey]})
 
       var _appendProfileElements = function(_selection, className, keyName,desc) {
         _selection.each(function() {
@@ -504,6 +505,23 @@ d3.egoNetworks = function module() {
   }
 
   function drawNeighbors(selection, neighborsData) {
+    var _polarToCartesian = function(centerX, centerY, radius, angle) {
+      //var angleInRadians = (angleInDegrees-90) * Math.PI / 180.0;
+      return {
+        x: centerX + (radius * Math.cos(angle-Math.HALF_PI )),
+        y: centerY + (radius * Math.sin(angle-Math.HALF_PI))
+      };
+    }
+    var _describeArc = function(x, y, radius, startAngle, endAngle){
+        var start = _polarToCartesian(x, y, radius, endAngle);
+        var end = _polarToCartesian(x, y, radius, startAngle);
+        var arcSweep = endAngle - startAngle <= Math.PI ? "0" : "1";
+        var d = [
+            "M", start.x, start.y,
+            "A", radius, radius, 0, arcSweep, 0, end.x, end.y
+        ].join(" ");
+        return d;
+    }
     var thetaOffset = (sorted ? Math.PI * .20 : 0),
      thetaUnit = (Math.PI*2 - thetaOffset)/ Math.max(1,(neighborsData.length-(sorted ? 1 : 0)));
 
@@ -527,18 +545,10 @@ d3.egoNetworks = function module() {
 
     var circle = backgroundEnter
     .each(function(d) {
-      var arc = d3.svg.arc()
-        .innerRadius(d[0]+2)
-        .outerRadius(null)
-        .endAngle(Math.TWO_PI + thetaOffset*.5)
-        .startAngle(Math.TWO_PI - thetaOffset*.5);
-
-      d3.select(this).append('circle')
-       .attr('r', d[0]);
       d3.select(this).append('path')
-        .attr('d', arc);
+        .attr('d', _describeArc(0,0,d[0], thetaOffset*.5, Math.TWO_PI - thetaOffset*.5));
     });
-    //.attr('r', function(d){return d[0]})
+
 
     if (sorted) {
       var category = background.selectAll('.category') // FIXME : 상단에 쓰기

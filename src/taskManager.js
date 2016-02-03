@@ -24,24 +24,29 @@ d3.json('data/instastar.json', function(_err,_data) {
 })
 
 function setKeyInteraction(_selection) {
+  var _submit = function() {
+    var ul = d3.select('.search.results > ul');
+    var selected = ul.selectAll('li.selected');
+    var datum;
+    if (selected.size() == 0) {
+      datum = ul.selectAll('li:first-child').datum();
+    } else {
+      datum = selected.datum();
+    }
+    // delete results;
+    d3.select('.search.inputs > input[type="search"]')
+      .property('value', '');
+    ul.selectAll('li')
+      .remove();
+    egoNetworks.ego(datum);
+    d3.select('.search.results').classed('hidden', true);
+  }
   _selection.on('keyup', function() {
     if (d3.event.keyCode == 13) { //return
       //change the network and remove ;
       var ul = d3.select('.search.results > ul');
       if (ul.selectAll('li').size() == 0) return false;
-      var selected = ul.selectAll('li.selected');
-      var datum;
-      if (selected.size() == 0) {
-        datum = ul.selectAll('li:first-child').datum();
-      } else {
-        datum = selected.datum();
-      }
-      // delete results;
-      d3.select('.search.inputs > input[type="search"]')
-        .property('value', '');
-      ul.selectAll('li')
-        .remove();
-      egoNetworks.ego(datum);
+      _submit();
       // transfer the datum to the network;
     } else if (d3.event.keyCode == 40) { //down
       var ul = d3.select('.search.results > ul');
@@ -77,13 +82,28 @@ function setKeyInteraction(_selection) {
       //do search and show the list;
       var query = d3.select(this).node().value;
       var ul = d3.select('.search.results > ul');
-      if(query=='') console.log('empty');
+      query = query.trim();
+      if(query=='') {
+        d3.select('.search.results').classed('hidden', true);
+        return;
+      }
       var results = egoNetworks.search(query);
       var li = ul.selectAll('li')
         .data(results);
-      li.enter().append('li')
-      li.text(function(d){return d['ent_name']});
+      var liEnter = li.enter().append('li')
+      liEnter.append('span').attr('class','name');
+      liEnter.append('span').attr('class','desc');
+      li.select('.name').text(function(d){return d['ent_name']});
+      li.select('.desc').text(function(d){return ((d['team'] && d['team'] !== '-') ? d['team'] : d['occupation'])});
+      li.on('mouseenter', function(d){
+        ul.selectAll('li.selected')
+          .classed('selected', false);
+        d3.select(this).classed('selected', true);
+      }).on('click', function(d) {
+        _submit();
+      })
       li.exit().remove();
+      if (li.size()>0) d3.select('.search.results').classed('hidden', false);
     }
     d3.event.returnValue = false
     return false;

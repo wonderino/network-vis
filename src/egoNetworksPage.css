@@ -1,7 +1,8 @@
 @import url(http://fonts.googleapis.com/earlyaccess/nanumgothic.css);
 
 body {
-  background-color : #222;
+  background : url("img/bg_retina.jpg");
+  background-size : cover;
   font-family: 'NanumGothic', 'Sans-serif';
   color : #fff;
   -webkit-box-sizing: border-box;
@@ -11,28 +12,102 @@ body {
 }
 header {
   background : rgba(0,0,0,.3) 67px 18px no-repeat;
-  height : 68px;
+  height : 68px; /*1345px*/
 }
 header > div {
   display : flex;
   display: -webkit-flex;
   justify-content : center;
+  align-items: center;
   flex-direction: row;
-  padding-left :64px;
-  width : 1347px;
+  width : 1345px;
+  padding : 0 24px;
+  margin : 0 auto;
+
 }
 header > div img.logo {
-  padding-top: 19px;
+  padding-top : 9px;
+  padding-left: 18px;
+  height : 30px;
 }
 
 header > div .search.inputs {
+  flex : 1;
+  text-align: right;
+  position : relative;
 }
+
+header > div .search.inputs input[type="search"] {
+  width : 262px;
+  height : 40px;
+  margin-top : 14px;
+  border: none;
+  -webkit-border-radius: 22px;
+  -moz-border-radius: 22px;
+  border-radius: 22px;
+  background : #2b2b2b;
+  padding-left : 36px;
+  color : #fff;
+  font-size : 14px;
+  -webkit-appearance: none;
+  -moz-appearance:    none;
+  appearance:         none;
+}
+header > div .search.inputs .icon {
+  position : absolute;
+  margin-left : 14px;
+  margin-top : 24px;
+}
+
+header > div .search.inputs input[type="search"]::-webkit-input-placeholder {
+   color: #8b8b8b;
+}
+header > div .search.inputs input[type="search"]:-moz-placeholder { /* Firefox 18- */
+   color: #8b8b8b;
+}
+header > div .search.inputs input[type="search"]::-moz-placeholder {  /* Firefox 19+ */
+   color: #8b8b8b;
+}
+header > div .search.inputs input[type="search"]:-ms-input-placeholder {
+   color: #8b8b8b;
+}
+
+header > div .search.results ul {
+  padding-left : 0px;
+  font-size : 13px;
+  list-style: none;
+  max-height : 600px;
+  overflow-y: scroll;
+}
+header > div .search.results li {
+  cursor: pointer;
+  padding : 14px;
+}
+header > div .search.results li .desc{
+  font-size : 11px;
+  color : #c9c9c9;
+  padding-left : 14px;
+}
+
 header > div .search.results li.selected {
   background : #fcd4a0;
 }
 
 header >div .search.results {
+  text-align: left;
+  display : inline-block;
+  position : absolute;
   color : #fff;
+  width : 262px;
+  margin-left : -262px;
+  margin-top : 60px;
+  background : rgba(77,77,77,0.95);
+  border-radius: 8px;
+  z-index: 9999;
+}
+
+header >div .search.results.hidden {
+  visibility: hidden;
 }
 
 section.content {
@@ -41,12 +116,13 @@ section.content {
   flex-direction: row;
   flex-wrap : nowrap;
   justify-content : center;
-  margin : 48px 24px;
+  padding : 48px 24px;
+  margin : 0 auto;
 }
 
 section.content > .sequence {
   width : 92px;
-  padding-left : 18px;
+  padding-left : 72px;
   margin-right : 40px;
 }
 
@@ -76,6 +152,7 @@ section.content > div.detail {
 }
 
 section.content > div.ego-nets {
+  margin-top: -108px;
   width : 880px;
 }
 section.content .title:before {

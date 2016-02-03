@@ -17,13 +17,16 @@
   fill : none;
 }
 
-.ego-nets .background .mutual circle {
+.ego-nets .background .mutual path {
   stroke : #009cff;
   stroke-dasharray: 6 6 ;
 
 }
 .ego-nets .background path{
- fill : #222;
+  stroke : #ccc;
+  stroke-width : 2px;
+  stroke-dasharray: 8 6 ;
+  fill : none;
 }
 
 .ego-nets .node {

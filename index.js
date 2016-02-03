@@ -23,7 +23,7 @@ d3.egoNetworks = function module() {
     sortAscending : true,
     sortUnit : 1,
     sortMap : {'mutual':'맞 팔', 'follow':'팔로잉', 'followed_by':'팔로워'},
-    sortDescMap : {'mutual':'상호 팔로우한 사이', 'follow':'대상이 팔로우 했으나 맞팔이 아닌 사이', 'followed_by':'대상을 팔로우 했으나 맞팔이 아닌 사이'},
+    sortDescMap : {'mutual':'서로 팔로우한 사이', 'follow':'대상이 팔로우 했으나 맞팔이 아닌 사이', 'followed_by':'대상을 팔로우 했으나 맞팔이 아닌 사이'},
     nameKey:'ent_name',
     teamKey:'team',
     jobKey:'occupation',
@@ -107,7 +107,8 @@ d3.egoNetworks = function module() {
       profileTitleEnter.append('div').attr('class', 'name')
         .text('인물정보')
       profileTitleEnter.append('div').attr('class', 'value')
-        .text(function(d){return '@'+d[attrs.idKey]})
+
+      profile.select('.value').text(function(d){return '@'+d[attrs.idKey]})
 
       var _appendProfileElements = function(_selection, className, keyName,desc) {
         _selection.each(function() {
@@ -504,6 +505,23 @@ d3.egoNetworks = function module() {
   }
 
   function drawNeighbors(selection, neighborsData) {
+    var _polarToCartesian = function(centerX, centerY, radius, angle) {
+      //var angleInRadians = (angleInDegrees-90) * Math.PI / 180.0;
+      return {
+        x: centerX + (radius * Math.cos(angle-Math.HALF_PI )),
+        y: centerY + (radius * Math.sin(angle-Math.HALF_PI))
+      };
+    }
+    var _describeArc = function(x, y, radius, startAngle, endAngle){
+        var start = _polarToCartesian(x, y, radius, endAngle);
+        var end = _polarToCartesian(x, y, radius, startAngle);
+        var arcSweep = endAngle - startAngle <= Math.PI ? "0" : "1";
+        var d = [
+            "M", start.x, start.y,
+            "A", radius, radius, 0, arcSweep, 0, end.x, end.y
+        ].join(" ");
+        return d;
+    }
     var thetaOffset = (sorted ? Math.PI * .20 : 0),
      thetaUnit = (Math.PI*2 - thetaOffset)/ Math.max(1,(neighborsData.length-(sorted ? 1 : 0)));
 
@@ -527,18 +545,10 @@ d3.egoNetworks = function module() {
 
     var circle = backgroundEnter
     .each(function(d) {
-      var arc = d3.svg.arc()
-        .innerRadius(d[0]+2)
-        .outerRadius(null)
-        .endAngle(Math.TWO_PI + thetaOffset*.5)
-        .startAngle(Math.TWO_PI - thetaOffset*.5);
-
-      d3.select(this).append('circle')
-       .attr('r', d[0]);
       d3.select(this).append('path')
-        .attr('d', arc);
+        .attr('d', _describeArc(0,0,d[0], thetaOffset*.5, Math.TWO_PI - thetaOffset*.5));
     });
-    //.attr('r', function(d){return d[0]})
+
 
     if (sorted) {
       var category = background.selectAll('.category') // FIXME : 상단에 쓰기
@@ -977,24 +987,29 @@ d3.json('data/instastar.json', function(_err,_data) {
 })
 
 function setKeyInteraction(_selection) {
+  var _submit = function() {
+    var ul = d3.select('.search.results > ul');
+    var selected = ul.selectAll('li.selected');
+    var datum;
+    if (selected.size() == 0) {
+      datum = ul.selectAll('li:first-child').datum();
+    } else {
+      datum = selected.datum();
+    }
+    // delete results;
+    d3.select('.search.inputs > input[type="search"]')
+      .property('value', '');
+    ul.selectAll('li')
+      .remove();
+    egoNetworks.ego(datum);
+    d3.select('.search.results').classed('hidden', true);
+  }
   _selection.on('keyup', function() {
     if (d3.event.keyCode == 13) { //return
       //change the network and remove ;
       var ul = d3.select('.search.results > ul');
       if (ul.selectAll('li').size() == 0) return false;
-      var selected = ul.selectAll('li.selected');
-      var datum;
-      if (selected.size() == 0) {
-        datum = ul.selectAll('li:first-child').datum();
-      } else {
-        datum = selected.datum();
-      }
-      // delete results;
-      d3.select('.search.inputs > input[type="search"]')
-        .property('value', '');
-      ul.selectAll('li')
-        .remove();
-      egoNetworks.ego(datum);
+      _submit();
       // transfer the datum to the network;
     } else if (d3.event.keyCode == 40) { //down
       var ul = d3.select('.search.results > ul');
@@ -1030,13 +1045,28 @@ function setKeyInteraction(_selection) {
       //do search and show the list;
       var query = d3.select(this).node().value;
       var ul = d3.select('.search.results > ul');
-      if(query=='') console.log('empty');
+      query = query.trim();
+      if(query=='') {
+        d3.select('.search.results').classed('hidden', true);
+        return;
+      }
       var results = egoNetworks.search(query);
       var li = ul.selectAll('li')
         .data(results);
-      li.enter().append('li')
-      li.text(function(d){return d['ent_name']});
+      var liEnter = li.enter().append('li')
+      liEnter.append('span').attr('class','name');
+      liEnter.append('span').attr('class','desc');
+      li.select('.name').text(function(d){return d['ent_name']});
+      li.select('.desc').text(function(d){return ((d['team'] && d['team'] !== '-') ? d['team'] : d['occupation'])});
+      li.on('mouseenter', function(d){
+        ul.selectAll('li.selected')
+          .classed('selected', false);
+        d3.select(this).classed('selected', true);
+      }).on('click', function(d) {
+        _submit();
+      })
       li.exit().remove();
+      if (li.size()>0) d3.select('.search.results').classed('hidden', false);
     }
     d3.event.returnValue = false
     return false;
